@@ -16,6 +16,10 @@ void Engine::shutdownEngine() {
     global_context = nullptr;
 }
 
-void Engine::runEngine() {}
+void Engine::runEngine() {
+    while (!global_context->window_sys->shouldClose()) {
+        global_context->window_sys->pollEvents();
+    }
+}
 
 } // namespace wen

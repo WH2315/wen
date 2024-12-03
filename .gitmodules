@@ -1,3 +1,6 @@
 [submodule "3rdlibs/spdlog"]
 	path = 3rdlibs/spdlog
 	url = https://github.com/gabime/spdlog.git
+[submodule "3rdlibs/glfw"]
+	path = 3rdlibs/glfw
+	url = https://github.com/glfw/glfw.git
