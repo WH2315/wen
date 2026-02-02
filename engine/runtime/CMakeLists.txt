@@ -11,5 +11,5 @@ file(GLOB_RECURSE headers CONFIGURE_DEPENDS "include/*.hpp")
 add_library(${TARGET_NAME} STATIC ${sources} ${headers})
 
 target_include_directories(${TARGET_NAME} PUBLIC ./include)
-target_link_libraries(${TARGET_NAME} PUBLIC spdlog glfw)
+target_link_libraries(${TARGET_NAME} PUBLIC spdlog glfw glm)
 target_precompile_headers(${TARGET_NAME} PUBLIC "include/pch.hpp")

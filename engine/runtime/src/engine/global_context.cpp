@@ -8,9 +8,11 @@ void GlobalContext::startup() {
     log_system.initialize(LogLevel::trace, LogLevel::trace);
     window_system.initialize(WindowInfo("wen 16 : 9", 1600, 900));
     event_system.initialize();
+    input_system.initialize();
 }
 
 void GlobalContext::shutdown() {
+    input_system.destroy();
     event_system.destroy();
     window_system.destroy();
     log_system.destroy();

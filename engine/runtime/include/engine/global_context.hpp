@@ -3,6 +3,7 @@
 #include "core/log/log_system.hpp"
 #include "function/window/window_system.hpp"
 #include "function/event/event_system.hpp"
+#include "function/input/input_system.hpp"
 
 namespace wen {
 
@@ -13,6 +14,7 @@ struct GlobalContext {
     Singleton<LogSystem> log_system;
     Singleton<WindowSystem> window_system;
     Singleton<EventSystem> event_system;
+    Singleton<InputSystem> input_system;
 };
 
 extern GlobalContext* global_context;
