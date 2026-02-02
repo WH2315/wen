@@ -6,8 +6,12 @@ GlobalContext* global_context = nullptr;
 
 void GlobalContext::startup() {
     log_system.initialize(LogLevel::trace, LogLevel::trace);
+    window_system.initialize(WindowInfo("wen 16 : 9", 1600, 900));
 }
 
-void GlobalContext::shutdown() { log_system.destroy(); }
+void GlobalContext::shutdown() {
+    window_system.destroy();
+    log_system.destroy();
+}
 
 }  // namespace wen

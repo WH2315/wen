@@ -6,7 +6,7 @@ namespace wen {
 void Engine::startupEngine() {
     global_context = new GlobalContext;
     global_context->startup();
-    WEN_CORE_INFO("engine start.")
+    WEN_CORE_INFO("engine startup.")
 }
 
 void Engine::shutdownEngine() {
@@ -16,6 +16,10 @@ void Engine::shutdownEngine() {
     global_context = nullptr;
 }
 
-void Engine::runEngine() {}
+void Engine::runEngine() {
+    while (!global_context->window_system->shouldClose()) {
+        global_context->window_system->pollEvents();
+    }
+}
 
 }  // namespace wen
