@@ -38,6 +38,11 @@ InputSystem::InputSystem() {
     });
 }
 
+void InputSystem::tick() {
+    mouse_delta_ = glm::dvec2(0.0, 0.0);
+    mouse_scroll_ = glm::dvec2(0.0, 0.0);
+}
+
 bool InputSystem::isKeyPressed(int key) const {
     return key_states_[key] == ButtonState::ePressed;
 }

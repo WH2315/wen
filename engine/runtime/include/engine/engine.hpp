@@ -17,7 +17,21 @@ public:
 
     void runEngine();
 
+    void prepareTimer();
+    void startTimer();
+    void stopTimer();
+
+protected:
+    void tickOneFrame();
+    void tickLogic();
+    void tickRender();
+
 private:
+    float delta_time_;
+    std::shared_ptr<Timer> main_timer_;
+    std::shared_ptr<Timer> fixed_timer_;
+    std::shared_ptr<Timer> benchmark_timer_;
+    std::unique_ptr<std::thread> fixed_tick_thread_;
 };
 
 }  // namespace wen

@@ -16,6 +16,8 @@ class InputSystem final {
     ~InputSystem();
 
 public:
+    void tick();
+
     bool isKeyPressed(int keycode) const;
     bool isKeyReleased(int keycode) const;
     bool isMousePressed(int button) const;

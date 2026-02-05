@@ -9,9 +9,11 @@ void GlobalContext::startup() {
     window_system.initialize(WindowInfo("wen 16 : 9", 1600, 900));
     event_system.initialize();
     input_system.initialize();
+    timer_system.initialize();
 }
 
 void GlobalContext::shutdown() {
+    timer_system.destroy();
     input_system.destroy();
     event_system.destroy();
     window_system.destroy();
