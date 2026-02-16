@@ -8,6 +8,8 @@ set(CMAKE_CXX_STANDARD 20)
 
 set(WEN_ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 
+set(ParserPath ${WEN_ROOT_DIR}/engine/parser)
+
 add_subdirectory(3rdlibs)
 add_subdirectory(engine)
 

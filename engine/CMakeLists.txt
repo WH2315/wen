@@ -20,3 +20,4 @@ endfunction()
 
 add_subdirectory(runtime)
 add_subdirectory(editor)
+add_subdirectory(parser)

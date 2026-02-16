@@ -5,6 +5,7 @@
 #include "function/event/event_system.hpp"
 #include "function/input/input_system.hpp"
 #include "function/timer/timer_system.hpp"
+#include "core/reflect/reflect_system.hpp"
 
 namespace wen {
 
@@ -17,6 +18,7 @@ struct GlobalContext {
     Singleton<EventSystem> event_system;
     Singleton<InputSystem> input_system;
     Singleton<TimerSystem> timer_system;
+    Singleton<ReflectSystem> reflect_system;
 };
 
 extern GlobalContext* global_context;

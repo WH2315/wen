@@ -10,9 +10,11 @@ void GlobalContext::startup() {
     event_system.initialize();
     input_system.initialize();
     timer_system.initialize();
+    reflect_system.initialize();
 }
 
 void GlobalContext::shutdown() {
+    reflect_system.destroy();
     timer_system.destroy();
     input_system.destroy();
     event_system.destroy();
