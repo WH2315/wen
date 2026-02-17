@@ -1,5 +1,6 @@
 #include <wen.hpp>
-#include "reflect_example.hpp"
+#include <pch.hpp>
+#include "auto_generated/auto_generated.hpp"
 
 using namespace wen;
 
@@ -57,6 +58,43 @@ int main() {
             my_class.getMember("Health").getValueConst<int>(example1))
         auto result = func1.invoke(example1, 10, 20);
         WEN_CLIENT_DEBUG("add(10, 20) = {}", result.cast<int>())
+    }
+
+    {
+        auto& parent_class = rs.getClass("Parent");
+        auto& child_class = rs.getClass("Child");
+        auto& parent_num = parent_class.getMember("num");
+        auto& parent_num2 = parent_class.getMember("num2");
+        auto& child_num = child_class.getMember("num");
+        auto& child_name = child_class.getMember("name");
+
+        Parent* parent = new Parent();
+        Child* child = new Child();
+        WEN_CLIENT_DEBUG("Parent num: {}",
+                         parent_num.getValueConstByPtr<double>(parent))
+        WEN_CLIENT_DEBUG("Parent num2: {}",
+                         parent_num2.getValueConstByPtr<uint32_t>(parent))
+        WEN_CLIENT_DEBUG("Child num: {}",
+                         child_num.getValueConstByPtr<double>(child))
+        WEN_CLIENT_DEBUG("Child name: {}",
+                         child_name.getValueConstByPtr<std::string>(child))
+
+        SerializeStream ss;
+        ss << *child;
+
+        Child child2;
+        child2.name = "abc";
+        child2.num = 22.22;
+        WEN_CLIENT_DEBUG("Child2 num: {}",
+                         child_num.getValueConstByPtr<double>(&child2))
+        WEN_CLIENT_DEBUG("Child2 name: {}",
+                         child_name.getValueConstByPtr<std::string>(&child2))
+        DeserializeStream ds(std::move(ss));
+        ds >> child2;
+        WEN_CLIENT_DEBUG("Child2 num(after deserialization): {}",
+                         child_num.getValueConst<double>(child2))
+        WEN_CLIENT_DEBUG("Child2 name(after deserialization): {}",
+                         child_name.getValueConst<std::string>(child2))
     }
 
     engine->runEngine();

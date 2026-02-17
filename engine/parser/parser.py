@@ -2,8 +2,10 @@ import sys
 import os
 import re
 
+
 def is_header(filename):
     return filename.endswith(".hpp") or filename.endswith(".h")
+
 
 class RemoveComments:
     def __init__(self, f):
@@ -23,15 +25,15 @@ class RemoveComments:
                 if c == '"':
                     in_str = not in_str
                 if not in_str:
-                    if c == '/' and i + 1 < len(line):
-                        if line[i + 1] == '/':
+                    if c == "/" and i + 1 < len(line):
+                        if line[i + 1] == "/":
                             break
-                        if line[i + 1] == '*':
+                        if line[i + 1] == "*":
                             fragment_comment = True
                 if not fragment_comment:
                     new_line += c
                 else:
-                    if c == '/' and i >= 1 and line[i - 1] == '*':
+                    if c == "/" and i >= 1 and line[i - 1] == "*":
                         fragment_comment = False
             new_line = new_line.strip("\n").rstrip(" ")
             if new_line:
@@ -45,13 +47,17 @@ class RemoveComments:
 
 
 class ClassInfo:
-    def __init__(self, name, qualified_name, header):
+    def __init__(self, name, qualified_name, header, base_classes=None):
         self.name = name
         self.qualified_name = qualified_name
         self.header = header
+        self.base_classes = base_classes or []
         self.reflect_name = None
         self.members = []
         self.functions = []
+        self.serializable = False
+        self.serialize_parent = False
+        self.serializable_members = []
 
 
 class ClassContext:
@@ -60,6 +66,39 @@ class ClassContext:
         self.depth = depth
         self.pending_member = None
         self.pending_function = None
+        self.pending_serializable_member = False
+
+
+ANNOTATION_MACROS = {
+    "REFLECT_MEMBER",
+    "REFLECT_FUNCTION",
+    "REFLECT_CLASS",
+    "SERIALIZABLE_MEMBER",
+    "SERIALIZABLE_CLASS",
+    "SERIALIZE_PARENT_CLASS",
+}
+
+
+def is_annotation_line(raw_line):
+    return any(macro in raw_line for macro in ANNOTATION_MACROS)
+
+
+def extract_base_classes(raw_line):
+    if ":" not in raw_line:
+        return []
+    declaration = raw_line.split(":", 1)[1]
+    declaration = declaration.split("{", 1)[0]
+    declaration = declaration.split(";", 1)[0]
+    bases = []
+    for chunk in declaration.split(","):
+        text = chunk.strip()
+        if not text:
+            continue
+        text = re.sub(r"\b(public|protected|private|virtual)\b", " ", text)
+        text = " ".join(text.split())
+        if text:
+            bases.append(text)
+    return bases
 
 
 def parse_macro_args(line, macro):
@@ -138,8 +177,10 @@ def extract_function_name(line):
 
 
 def remove_macro_from_line(line, macro):
-    pattern = r"%s\s*\([^)]*\)" % re.escape(macro)
-    return re.sub(pattern, "", line)
+    pattern_with_args = r"%s\s*\([^)]*\)" % re.escape(macro)
+    line = re.sub(pattern_with_args, "", line)
+    pattern_no_args = r"\b%s\b" % re.escape(macro)
+    return re.sub(pattern_no_args, "", line)
 
 
 def parse_header(path, include_root):
@@ -161,25 +202,30 @@ def parse_header(path, include_root):
         open_count = raw_line.count("{")
         close_count = raw_line.count("}")
 
-        namespace_matches = re.findall(r"\bnamespace\s+([A-Za-z_]\w*(?:::\w+)*)\s*\{", raw_line)
+        namespace_matches = re.findall(
+            r"\bnamespace\s+([A-Za-z_]\w*(?:::\w+)*)\s*\{", raw_line
+        )
         for name in namespace_matches:
             namespace_stack.append((name, depth + 1))
 
         class_match = re.search(r"^\s*(class|struct)\s+([A-Za-z_]\w*)\b", raw_line)
         if class_match:
             name = class_match.group(2)
+            base_classes = extract_base_classes(raw_line)
             is_forward = (";" in raw_line) and ("{" not in raw_line)
             if not is_forward:
                 if "{" in raw_line:
                     qualified = "::".join([ns for ns, _ in namespace_stack] + [name])
-                    info = ClassInfo(name, qualified, include_root)
+                    info = ClassInfo(name, qualified, include_root, base_classes)
                     class_stack.append(ClassContext(info, depth + 1))
                     classes.append(info)
                 else:
                     pending_class_name = name
 
         if pending_class_name and open_count > 0:
-            qualified = "::".join([ns for ns, _ in namespace_stack] + [pending_class_name])
+            qualified = "::".join(
+                [ns for ns, _ in namespace_stack] + [pending_class_name]
+            )
             info = ClassInfo(pending_class_name, qualified, include_root)
             class_stack.append(ClassContext(info, depth + 1))
             classes.append(info)
@@ -216,23 +262,69 @@ def parse_header(path, include_root):
                 else:
                     context.pending_function = explicit_name or ""
 
+            if "SERIALIZABLE_CLASS" in raw_line:
+                context.info.serializable = True
+
+            if "SERIALIZE_PARENT_CLASS" in raw_line:
+                context.info.serialize_parent = True
+
+            if "SERIALIZABLE_MEMBER" in raw_line:
+                candidate_line = remove_macro_from_line(raw_line, "SERIALIZABLE_MEMBER")
+                member_name = extract_member_name(candidate_line)
+                if member_name:
+                    context.info.serializable_members.append(member_name)
+                else:
+                    context.pending_serializable_member = True
+
             if context.pending_member is not None and "REFLECT_MEMBER" not in raw_line:
-                if line and not line.startswith("#") and not line.startswith("public") \
-                    and not line.startswith("private") and not line.startswith("protected"):
+                if (
+                    line
+                    and not line.startswith("#")
+                    and not line.startswith("public")
+                    and not line.startswith("private")
+                    and not line.startswith("protected")
+                    and not is_annotation_line(raw_line)
+                ):
                     member_name = extract_member_name(raw_line)
                     if member_name:
                         reflect_name = context.pending_member or member_name
                         context.info.members.append((reflect_name, member_name))
                         context.pending_member = None
 
-            if context.pending_function is not None and "REFLECT_FUNCTION" not in raw_line:
-                if line and not line.startswith("#") and not line.startswith("public") \
-                    and not line.startswith("private") and not line.startswith("protected"):
+            if (
+                context.pending_function is not None
+                and "REFLECT_FUNCTION" not in raw_line
+            ):
+                if (
+                    line
+                    and not line.startswith("#")
+                    and not line.startswith("public")
+                    and not line.startswith("private")
+                    and not line.startswith("protected")
+                    and not is_annotation_line(raw_line)
+                ):
                     function_name = extract_function_name(raw_line)
                     if function_name:
                         reflect_name = context.pending_function or function_name
                         context.info.functions.append((reflect_name, function_name))
                         context.pending_function = None
+
+            if (
+                context.pending_serializable_member
+                and "SERIALIZABLE_MEMBER" not in raw_line
+            ):
+                if (
+                    line
+                    and not line.startswith("#")
+                    and not line.startswith("public")
+                    and not line.startswith("private")
+                    and not line.startswith("protected")
+                    and not is_annotation_line(raw_line)
+                ):
+                    member_name = extract_member_name(raw_line)
+                    if member_name:
+                        context.info.serializable_members.append(member_name)
+                        context.pending_serializable_member = False
 
         depth += open_count - close_count
 
@@ -266,14 +358,68 @@ def to_include_path(header_path, include_roots):
     return normalized
 
 
-def generate_cpp(classes, include_roots, output_path):
+def collect_unique_includes(
+    classes, include_roots, *, use_reflect=False, use_serialize=False
+):
     includes = []
     for cls in classes:
-        if cls.reflect_name is None:
+        if use_reflect and cls.reflect_name is None:
+            continue
+        if use_serialize and not cls.serializable:
             continue
         include_path = to_include_path(cls.header, include_roots)
         if include_path not in includes:
             includes.append(include_path)
+    return includes
+
+
+def generate_serialize_hpp(classes, include_roots, output_path):
+    includes = collect_unique_includes(classes, include_roots, use_serialize=True)
+
+    lines = []
+    lines.append("#pragma once\n\n")
+    lines.append("// This file is auto-generated by engine/parser/parser.py.\n")
+    lines.append("// Do not edit manually.\n\n")
+    lines.append('#include "core/serialize/stream.hpp"\n')
+    for inc in includes:
+        lines.append(f'#include "{inc}"\n')
+    lines.append("\n")
+    lines.append("using namespace wen;\n\n")
+
+    for cls in classes:
+        if not cls.serializable:
+            continue
+
+        lines.append("template <>\n")
+        lines.append(f"struct SerializeTraits<{cls.qualified_name}> {{\n")
+        lines.append(
+            f"    static void serialize(SerializeStream& stream, const {cls.qualified_name}& value) {{\n"
+        )
+        if cls.serialize_parent and cls.base_classes:
+            for base in cls.base_classes:
+                lines.append(f"        stream << static_cast<const {base}&>(value);\n")
+        for member_name in cls.serializable_members:
+            lines.append(f"        stream << value.{member_name};\n")
+        lines.append("    }\n\n")
+
+        lines.append(
+            f"    static void deserialize(DeserializeStream& stream, {cls.qualified_name}& value) {{\n"
+        )
+        for member_name in reversed(cls.serializable_members):
+            lines.append(f"        stream >> value.{member_name};\n")
+        if cls.serialize_parent and cls.base_classes:
+            for base in reversed(cls.base_classes):
+                lines.append(f"        stream >> static_cast<{base}&>(value);\n")
+        lines.append("    }\n")
+        lines.append("};\n")
+
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    with open(output_path, "w", encoding="utf-8") as f:
+        f.writelines(lines)
+
+
+def generate_reflect_cpp(classes, include_roots, output_path):
+    includes = collect_unique_includes(classes, include_roots, use_reflect=True)
 
     lines = []
     lines.append("// This file is auto-generated by engine/parser/parser.py.\n")
@@ -298,15 +444,15 @@ def generate_cpp(classes, include_roots, output_path):
             continue
         lines.append("    {\n")
         lines.append(
-            f"        auto class_builder = reflect_system.addClass<{cls.qualified_name}>(\"{cls.reflect_name}\");\n"
+            f'        auto class_builder = reflect_system.addClass<{cls.qualified_name}>("{cls.reflect_name}");\n'
         )
         for reflect_name, member_name in cls.members:
             lines.append(
-                f"        class_builder.addMember(\"{reflect_name}\", &{cls.qualified_name}::{member_name});\n"
+                f'        class_builder.addMember("{reflect_name}", &{cls.qualified_name}::{member_name});\n'
             )
         for reflect_name, function_name in cls.functions:
             lines.append(
-                f"        class_builder.addFunction(\"{reflect_name}\", &{cls.qualified_name}::{function_name});\n"
+                f'        class_builder.addFunction("{reflect_name}", &{cls.qualified_name}::{function_name});\n'
             )
         lines.append("    }\n\n")
 
@@ -350,9 +496,11 @@ def main():
     for header in headers:
         classes = parse_header(header, header)
         all_classes.extend(classes)
-    output_path = os.path.join(output_dir, "auto_generated.cpp")
+    output_cpp = os.path.join(output_dir, "auto_generated.cpp")
+    output_hpp = os.path.join(output_dir, "auto_generated.hpp")
 
-    generate_cpp(all_classes, search_roots, output_path)
+    generate_serialize_hpp(all_classes, search_roots, output_hpp)
+    generate_reflect_cpp(all_classes, search_roots, output_cpp)
 
 
 if __name__ == "__main__":

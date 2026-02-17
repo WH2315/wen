@@ -1,8 +1,41 @@
 #pragma once
 
-#include "core/reflect/reflect.hpp"
+#include <wen.hpp>
+#include <iostream>
 
-#include <string>
+struct Parent {
+    REFLECT_CLASS()
+    SERIALIZABLE_CLASS
+
+    REFLECT_MEMBER()
+    SERIALIZABLE_MEMBER
+    double num = 0.0;
+
+    REFLECT_MEMBER()
+    SERIALIZABLE_MEMBER
+    uint32_t num2 = -1u;
+
+    REFLECT_FUNCTION()
+    virtual void func() { std::cout << "Parent::func" << std::endl; }
+};
+
+class Child : public Parent {
+    REFLECT_CLASS()
+    SERIALIZABLE_CLASS
+    SERIALIZE_PARENT_CLASS
+
+public:
+    REFLECT_MEMBER()
+    SERIALIZABLE_MEMBER
+    std::string name = "qwe";
+
+    REFLECT_MEMBER()
+    SERIALIZABLE_MEMBER
+    double num = 11.11;
+
+    REFLECT_FUNCTION()
+    void func() override { std::cout << "Child::func" << std::endl; }
+};
 
 namespace B::C {
 
@@ -10,6 +43,7 @@ namespace A::D {
 
 class ExampleReflect {
     REFLECT_CLASS("ExampleReflect")
+    SERIALIZABLE_CLASS
 
 public:
     ExampleReflect() = default;
@@ -25,8 +59,10 @@ public:
 
 private:
     ALLOW_PRIVATE_REFLECT()
+    ALL_PRIVATE_SERIALIZATION(ExampleReflect)
 
     REFLECT_MEMBER("secret_value")
+    SERIALIZABLE_MEMBER
     float secret_value = 1.0f;
 
     REFLECT_FUNCTION()
