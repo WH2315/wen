@@ -10,11 +10,19 @@ set(WEN_ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 
 set(ParserPath ${WEN_ROOT_DIR}/engine/parser)
 
-add_subdirectory(3rdlibs)
+include(cmake/vulkan.cmake)
+include(cmake/3rdlibs.cmake)
+include(cmake/imgui.cmake)
+
 add_subdirectory(engine)
 
 option(WEN_BUILD_SANDBOX "build sandbox" ON)
+option(WEN_BUILD_EXAMPLE "build example" OFF)
 
 if(WEN_BUILD_SANDBOX)
     add_subdirectory(sandbox)
+endif()
+
+if(WEN_BUILD_EXAMPLE)
+    add_subdirectory(example)
 endif()

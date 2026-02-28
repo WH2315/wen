@@ -1,0 +1,7 @@
+add_subdirectory(3rdlibs/spdlog)
+add_subdirectory(3rdlibs/glfw)
+add_subdirectory(3rdlibs/glm)
+add_subdirectory(3rdlibs/glslang)
+add_subdirectory(3rdlibs/VulkanMemoryAllocator)
+add_subdirectory(3rdlibs/tinyobjloader)
+add_subdirectory(3rdlibs/tinygltf)

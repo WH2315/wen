@@ -11,9 +11,11 @@ void GlobalContext::startup() {
     input_system.initialize();
     timer_system.initialize();
     reflect_system.initialize();
+    render_system.initialize(Renderer::Configuration{.debug = true});
 }
 
 void GlobalContext::shutdown() {
+    render_system.destroy();
     reflect_system.destroy();
     timer_system.destroy();
     input_system.destroy();
