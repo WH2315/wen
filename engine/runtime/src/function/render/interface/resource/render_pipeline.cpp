@@ -30,6 +30,9 @@ Shader::Shader(const std::string& filename, ShaderStage stage) {
         case ShaderStage::eIntersection:
             shader_stage = EShLangIntersect;
             break;
+        case ShaderStage::eCompute:
+            shader_stage = EShLangCompute;
+            break;
     }
     glslang::TShader shader(shader_stage);
     auto data = code.data();
@@ -119,6 +122,16 @@ RayTracingShaderProgram::~RayTracingShaderProgram() {
     }
     hit_groups_.clear();
     hit_shader_count_ = 0;
+}
+
+void ComputeShaderProgram::setComputeShader(const std::shared_ptr<Shader>& shader) {
+    compute_shader_ = shader;
+}
+
+ComputeShaderProgram::~ComputeShaderProgram() {
+    if (compute_shader_) {
+        compute_shader_.reset();
+    }
 }
 
 }  // namespace wen::Renderer
@@ -391,6 +404,26 @@ void RayTracingRenderPipeline::compile(const RayTracingRenderPipelineOptions& op
         memcpy(ptr + i * handle_size_aligned, get_handle(1 + shader_program_->miss_shaders_.size() + i), handle_size);
     }
     buffer_->unmap();
+}
+
+ComputeRenderPipeline::ComputeRenderPipeline() {}
+
+ComputeRenderPipeline::~ComputeRenderPipeline() {
+    shader_program_.reset();
+}
+
+void ComputeRenderPipeline::compile(const ComputeRenderPipelineOptions& options) {
+    auto shader_stage = createShaderStage(vk::ShaderStageFlagBits::eCompute, shader_program_->compute_shader_->module.value());
+
+    createPipelineLayout();
+
+    vk::ComputePipelineCreateInfo compute_pipeline_ci{};
+    compute_pipeline_ci.setStage(shader_stage)
+        .setLayout(pipeline_layout)
+        .setBasePipelineHandle(nullptr)
+        .setBasePipelineIndex(0);
+
+    pipeline = manager->device->device.createComputePipeline(nullptr, compute_pipeline_ci).value;
 }
 
 }  // namespace wen::Renderer

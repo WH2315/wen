@@ -47,7 +47,7 @@ void Engine::prepareTimer() {
 }
 
 void Engine::startTimer() {
-    // global_context->scene_manager->start();
+    global_context->scene_manager->start();
 
     main_timer_->reset();
     fixed_timer_->reset();
@@ -67,11 +67,11 @@ void Engine::tickOneFrame() {
 
 void Engine::tickLogic() {
     if (!main_timer_->stopped()) {
-        // global_context->scene_manager->swap();
+        global_context->scene_manager->swap();
     }
     benchmark_timer_->tick();
     if (!main_timer_->stopped()) {
-        // global_context->scene_manager->tick(delta_time_);
+        global_context->scene_manager->tick(delta_time_);
     }
     float benchmark_dt = benchmark_timer_->tick();
     WEN_CORE_DEBUG("BENCHMARK: Logic Delta Time(ms): {}", benchmark_dt * 1000)

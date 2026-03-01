@@ -79,6 +79,19 @@ private:
     uint32_t hit_shader_count_ = 0;
 };
 
+class ComputeShaderProgram {
+    friend class ComputeRenderPipeline;
+
+public:
+    ComputeShaderProgram() = default;
+    ~ComputeShaderProgram();
+
+    void setComputeShader(const std::shared_ptr<Shader>& shader);
+
+private:
+    std::shared_ptr<Shader> compute_shader_;
+};
+
 }  // namespace wen::Renderer
 
 namespace wen::Renderer {
@@ -169,6 +182,21 @@ private:
     vk::StridedDeviceAddressRegionKHR miss_region_{};
     vk::StridedDeviceAddressRegionKHR hit_region_{};
     vk::StridedDeviceAddressRegionKHR callable_region_{};
+};
+
+struct ComputeRenderPipelineOptions {};
+
+class ComputeRenderPipeline : public RenderPipelineTemplate<ComputeRenderPipeline, ComputeRenderPipelineOptions> {
+public:
+    ComputeRenderPipeline();
+    ~ComputeRenderPipeline() override;
+
+    void compile(const ComputeRenderPipelineOptions& options) override;
+
+    vk::PipelineBindPoint bind_point = vk::PipelineBindPoint::eCompute;
+
+private:
+    std::shared_ptr<ComputeShaderProgram> shader_program_;
 };
 
 }  // namespace wen::Renderer

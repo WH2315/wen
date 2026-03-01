@@ -12,9 +12,15 @@ void GlobalContext::startup() {
     timer_system.initialize();
     reflect_system.initialize();
     render_system.initialize(Renderer::Configuration{.debug = true});
+    game_object_uuid_allocator.initialize();
+    component_type_uuid_system.initialize();
+    scene_manager.initialize();
 }
 
 void GlobalContext::shutdown() {
+    scene_manager.destroy();
+    component_type_uuid_system.destroy();
+    game_object_uuid_allocator.destroy();
     render_system.destroy();
     reflect_system.destroy();
     timer_system.destroy();

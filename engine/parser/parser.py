@@ -490,7 +490,7 @@ def main():
 
     output_dir = sys.argv[1]
     input_dir = sys.argv[2]
-    search_roots = [input_dir]
+    search_roots = default_roots + [input_dir]
     headers = collect_headers(search_roots)
     all_classes = []
     for header in headers:
