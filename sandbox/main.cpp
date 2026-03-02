@@ -8,6 +8,9 @@ int main() {
 
     engine->startupEngine();
 
+    auto scene = global_context->scene_manager->createScene("First Scene");
+    global_context->asset_system->setRootDir("sandbox/resources");
+
     engine->runEngine();
 
     engine->shutdownEngine();

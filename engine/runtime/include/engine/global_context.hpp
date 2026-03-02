@@ -9,6 +9,8 @@
 #include "function/render/render_system.hpp"
 #include "function/framework/uuid_manager.hpp"
 #include "function/framework/scene_manager.hpp"
+#include "function/asset/asset_system.hpp"
+#include "function/camera/camera_system.hpp"
 
 namespace wen {
 
@@ -26,6 +28,8 @@ struct GlobalContext {
     Singleton<GameObjectUUIDAllocator> game_object_uuid_allocator;
     Singleton<ComponentTypeUUIDSystem> component_type_uuid_system;
     Singleton<SceneManager> scene_manager;
+    Singleton<AssetSystem> asset_system;
+    Singleton<CameraSystem> camera_system;
 };
 
 extern GlobalContext* global_context;

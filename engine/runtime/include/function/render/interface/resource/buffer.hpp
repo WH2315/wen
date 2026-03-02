@@ -34,7 +34,7 @@ public:
 
 class VertexBuffer : public SpecificBuffer {
 public:
-    VertexBuffer(uint32_t size, uint32_t count);
+    VertexBuffer(uint32_t size, uint32_t count, vk::BufferUsageFlags additional_usage);
     ~VertexBuffer() override;
 
     void* map();
@@ -61,7 +61,7 @@ private:
 
 class IndexBuffer : public SpecificBuffer {
 public:
-    IndexBuffer(IndexType index_type, uint32_t count);
+    IndexBuffer(IndexType index_type, uint32_t count, vk::BufferUsageFlags additional_usage);
     ~IndexBuffer() override;
 
     void* map();

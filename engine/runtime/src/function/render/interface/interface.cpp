@@ -33,12 +33,12 @@ std::shared_ptr<VertexInput> Interface::createVertexInput(const std::vector<Vert
     return std::make_shared<VertexInput>(infos);
 }
 
-std::shared_ptr<VertexBuffer> Interface::createVertexBuffer(uint32_t size, uint32_t count) {
-    return std::make_shared<VertexBuffer>(size, count);
+std::shared_ptr<VertexBuffer> Interface::createVertexBuffer(uint32_t size, uint32_t count, vk::BufferUsageFlags additional_usage) {
+    return std::make_shared<VertexBuffer>(size, count, additional_usage);
 }
 
-std::shared_ptr<IndexBuffer> Interface::createIndexBuffer(IndexType type, uint32_t count) {
-    return std::make_shared<IndexBuffer>(type, count);
+std::shared_ptr<IndexBuffer> Interface::createIndexBuffer(IndexType type, uint32_t count, vk::BufferUsageFlags additional_usage) {
+    return std::make_shared<IndexBuffer>(type, count, additional_usage);
 }
 
 std::shared_ptr<DescriptorSet> Interface::createDescriptorSet() {

@@ -47,7 +47,7 @@ Buffer::~Buffer() {
     vmaDestroyBuffer(manager->vma_allocator, buffer, allocation_);
 }
 
-VertexBuffer::VertexBuffer(uint32_t size, uint32_t count) {
+VertexBuffer::VertexBuffer(uint32_t size, uint32_t count, vk::BufferUsageFlags additional_usage) {
     staging_ = std::make_unique<Buffer>(
         static_cast<uint64_t>(size) * count,
         vk::BufferUsageFlagBits::eTransferSrc,
@@ -56,7 +56,7 @@ VertexBuffer::VertexBuffer(uint32_t size, uint32_t count) {
     );
     buffer_ = std::make_unique<Buffer>(
         static_cast<uint64_t>(size) * count,
-        vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eVertexBuffer,
+        vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eVertexBuffer | additional_usage,
         VMA_MEMORY_USAGE_GPU_ONLY,
         VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT
     );
@@ -83,7 +83,7 @@ void VertexBuffer::unmap() {
     staging_->unmap();
 }
 
-IndexBuffer::IndexBuffer(IndexType index_type, uint32_t count) {
+IndexBuffer::IndexBuffer(IndexType index_type, uint32_t count, vk::BufferUsageFlags additional_usage) {
     index_type_ = convert<vk::IndexType>(index_type);
     staging_ = std::make_unique<Buffer>(
         static_cast<uint64_t>(count) * convert<uint32_t>(index_type),
@@ -93,7 +93,7 @@ IndexBuffer::IndexBuffer(IndexType index_type, uint32_t count) {
     );
     buffer_ = std::make_unique<Buffer>(
         static_cast<uint64_t>(count) * convert<uint32_t>(index_type),
-        vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eIndexBuffer,
+        vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eIndexBuffer | additional_usage,
         VMA_MEMORY_USAGE_GPU_ONLY,
         VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT
     );

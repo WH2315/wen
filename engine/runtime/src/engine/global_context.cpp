@@ -15,9 +15,13 @@ void GlobalContext::startup() {
     game_object_uuid_allocator.initialize();
     component_type_uuid_system.initialize();
     scene_manager.initialize();
+    asset_system.initialize();
+    camera_system.initialize();
 }
 
 void GlobalContext::shutdown() {
+    camera_system.destroy();
+    asset_system.destroy();
     scene_manager.destroy();
     component_type_uuid_system.destroy();
     game_object_uuid_allocator.destroy();

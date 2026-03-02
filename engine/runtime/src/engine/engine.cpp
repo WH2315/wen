@@ -25,8 +25,8 @@ void Engine::runEngine() {
         global_context->window_system->pollEvents();
         tickOneFrame();
     }
-    // fixed_tick_thread_->join();
-    // fixed_tick_thread_.reset();
+    fixed_tick_thread_->join();
+    fixed_tick_thread_.reset();
 }
 
 void Engine::prepareTimer() {
@@ -35,15 +35,15 @@ void Engine::prepareTimer() {
     fixed_timer_ = global_context->timer_system->registerTimer();
     benchmark_timer_ = global_context->timer_system->registerTimer();
     stopTimer();
-    // fixed_tick_thread_ = std::make_unique<std::thread>([this]() {
-    //     while (!global_context->window_system->shouldClose()) {
-    //         if ((!fixed_timer_->stopped()) && (!main_timer_->stopped())) {
-    //             // global_context->scene_manager->fixedTick();
-    //         }
-    //         constexpr float fixed_tick_delta_time = 1.0 / 30.0;
-    //         fixed_timer_->tick(std::chrono::milliseconds(static_cast<int>(fixed_tick_delta_time * 1000)));
-    //     }
-    // });
+    fixed_tick_thread_ = std::make_unique<std::thread>([this]() {
+        while (!global_context->window_system->shouldClose()) {
+            if ((!fixed_timer_->stopped()) && (!main_timer_->stopped())) {
+                global_context->scene_manager->fixedTick();
+            }
+            constexpr float fixed_tick_delta_time = 1.0 / 30.0;
+            fixed_timer_->tick(std::chrono::milliseconds(static_cast<int>(fixed_tick_delta_time * 1000)));
+        }
+    });
 }
 
 void Engine::startTimer() {

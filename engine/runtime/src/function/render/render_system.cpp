@@ -15,6 +15,7 @@ RenderSystem::RenderSystem(const Renderer::Configuration& config) {
 
 void RenderSystem::createRenderer() {
     renderer_ = std::make_unique<Renderers>();
+    swap_data_ = std::make_unique<SwapData>();
 }
 
 void RenderSystem::render() {
@@ -23,6 +24,7 @@ void RenderSystem::render() {
 
 void RenderSystem::destroyRenderer() {
     renderer_.reset();
+    swap_data_.reset();
 }
 
 RenderSystem::~RenderSystem() {

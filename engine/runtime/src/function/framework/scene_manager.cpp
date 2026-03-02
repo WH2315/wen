@@ -116,7 +116,7 @@ void SceneManager::swap() {
     }
     active_scene_ = change_scene_;
     change_scene_ = nullptr;
-    // global_context->render_system->getSwapData()->clear();
+    global_context->render_system->getSwapData()->clear();
     start();
 }
 
