@@ -17,7 +17,6 @@ public:
 
     GameObject* createGameObject(const std::string& name);
     void removeGameObject(GameObject* game_object);
-    void removeGameObject(GameObjectUUID uuid);
 
 private:
     std::string name_;

@@ -9,6 +9,7 @@ Renderer::Renderer(std::shared_ptr<RenderPass> render_pass) {
     framebuffer_set = std::make_unique<FramebufferSet>(*this);
 
     current_frame_ = 0;
+    renderer_config.current_frame_in_flight = 0;
     command_buffers_ = manager->command_pool->allocateCommandBuffers(renderer_config.max_frames_in_flight);
     current_buffer_ = command_buffers_[0];
 
@@ -147,6 +148,7 @@ void Renderer::present() {
     }
 
     current_frame_ = (current_frame_ + 1) % renderer_config.max_frames_in_flight;
+    renderer_config.current_frame_in_flight = current_frame_;
     current_buffer_ = command_buffers_[current_frame_];
     in_flight_submit_infos_[current_frame_].clear();
 }

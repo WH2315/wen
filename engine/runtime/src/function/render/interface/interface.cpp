@@ -107,4 +107,12 @@ std::shared_ptr<SphereModel> Interface::createSphereModel() {
     return std::make_shared<SphereModel>();
 }
 
+std::shared_ptr<ComputeShaderProgram> Interface::createComputeShaderProgram() {
+    return std::make_shared<ComputeShaderProgram>();
+}
+
+std::shared_ptr<ComputeRenderPipeline> Interface::createComputeRenderPipeline(std::shared_ptr<ComputeShaderProgram> shader_program) {
+    return std::make_shared<ComputeRenderPipeline>(shader_program);
+}
+
 }  // namespace wen::Renderer

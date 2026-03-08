@@ -406,7 +406,8 @@ void RayTracingRenderPipeline::compile(const RayTracingRenderPipelineOptions& op
     buffer_->unmap();
 }
 
-ComputeRenderPipeline::ComputeRenderPipeline() {}
+ComputeRenderPipeline::ComputeRenderPipeline(const std::shared_ptr<ComputeShaderProgram>& shader_program)
+    : shader_program_(shader_program) {}
 
 ComputeRenderPipeline::~ComputeRenderPipeline() {
     shader_program_.reset();

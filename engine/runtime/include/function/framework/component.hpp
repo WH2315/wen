@@ -45,7 +45,7 @@ protected:
     ALLOW_PRIVATE_REFLECT()
 
     REFLECT_MEMBER()
-    class GameObject* master_;
+    class GameObject* game_object_;
     ComponentTypeUUID uuid_;
     uint32_t current_member_update_callback_id_ = 0;
     std::map<uint32_t, std::function<void(Component*)>> member_update_callbacks_;

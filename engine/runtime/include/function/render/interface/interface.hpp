@@ -31,6 +31,8 @@ public:
     std::shared_ptr<RayTracingInstance> createRayTracingInstance();
     std::shared_ptr<GLTFScene> loadGLTFScene(const std::string& filename, const std::vector<std::string>& attrs = {});
     std::shared_ptr<SphereModel> createSphereModel();
+    std::shared_ptr<ComputeShaderProgram> createComputeShaderProgram();
+    std::shared_ptr<ComputeRenderPipeline> createComputeRenderPipeline(std::shared_ptr<ComputeShaderProgram> shader_program);
 
 private:
     std::string path_;

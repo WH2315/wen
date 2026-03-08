@@ -1,8 +1,8 @@
 #pragma once
 
 #include "core/base/singleton.hpp"
-#include "function/render/render_framework/renderer.hpp"
-#include "function/render/swap_data.hpp"
+#include "function/render/render_framework/render_framework.hpp"
+#include "function/render/render_data.hpp"
 
 namespace wen {
 
@@ -19,15 +19,16 @@ public:
     uint32_t getMaxMeshInstanceCount() const { return 16384; }
 
     std::string output_attachment_name;
+    auto getRendererConfig() { return Renderer::renderer_config; }
     auto getAPIManager() { return Renderer::manager; }
     auto getInterface() { return interface_.get(); }
-    auto getRenderer() { return renderer_.get(); }
-    auto getSwapData() { return swap_data_.get(); }
+    auto getRenderFramework() { return render_framework_.get(); }
+    auto getRenderData() { return render_data_.get(); }
 
 private:
     std::shared_ptr<Renderer::Interface> interface_;
-    std::unique_ptr<Renderers> renderer_;
-    std::unique_ptr<SwapData> swap_data_;
+    std::unique_ptr<RenderFramework> render_framework_;
+    std::unique_ptr<RenderData> render_data_;
 };
 
 }  // namespace wen

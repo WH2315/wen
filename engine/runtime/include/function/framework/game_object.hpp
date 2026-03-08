@@ -17,10 +17,8 @@ public:
 
     void addComponent(Component* component);
     void removeComponent(Component* component);
-    void removeComponent(ComponentTypeUUID uuid);
 
     Component* queryComponent(const std::string& class_name);
-    Component* forceGetComponent(const std::string& class_name);
 
 public:
     auto getUUID() const { return uuid_; }
@@ -30,11 +28,6 @@ public:
     template <class C>
     C* queryComponent() {
         return static_cast<C*>(queryComponent(C::GetClassName()));
-    }
-
-    template <class C>
-    C* forceGetComponent() {
-        return static_cast<C*>(forceGetComponent(C::GetClassName()));
     }
 
     auto getComponents() { return components_; }

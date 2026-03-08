@@ -188,10 +188,10 @@ struct ComputeRenderPipelineOptions {};
 
 class ComputeRenderPipeline : public RenderPipelineTemplate<ComputeRenderPipeline, ComputeRenderPipelineOptions> {
 public:
-    ComputeRenderPipeline();
+    ComputeRenderPipeline(const std::shared_ptr<ComputeShaderProgram>& shader_program);
     ~ComputeRenderPipeline() override;
 
-    void compile(const ComputeRenderPipelineOptions& options) override;
+    void compile(const ComputeRenderPipelineOptions& options = {}) override;
 
     vk::PipelineBindPoint bind_point = vk::PipelineBindPoint::eCompute;
 

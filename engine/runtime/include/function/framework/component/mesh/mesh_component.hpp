@@ -17,17 +17,17 @@ public:
     MeshID mesh_id;
 
     void onCreate() override {
-        auto mesh_instance_pool = global_context->render_system->getSwapData()->getMeshInstancePool(); 
-        auto transform_component = master_->queryComponent<TransformComponent>();
+        auto mesh_instance_pool = global_context->render_system->getRenderData()->getMeshInstancePool(); 
+        auto transform_component = game_object_->queryComponent<TransformComponent>();
         if (transform_component != nullptr) {
             mesh_instance_pool->createMeshInstance({
                 .location = transform_component->location,
                 .rotation = transform_component->rotation,
                 .scale = transform_component->scale,
                 .mesh_id = mesh_id
-            }, master_->getUUID());
-            transform_component->addMemberUpdateCallback([transform_component, uuid = master_->getUUID()](Component* component) {
-                auto ptr = global_context->render_system->getSwapData()->getMeshInstancePool()->getMeshInstancePtr(uuid);
+            }, game_object_->getUUID());
+            transform_component->addMemberUpdateCallback([transform_component, uuid = game_object_->getUUID()](Component* component) {
+                auto ptr = global_context->render_system->getRenderData()->getMeshInstancePool()->getMeshInstancePtr(uuid);
                 ptr->location = transform_component->location;
                 ptr->rotation = transform_component->rotation;
                 ptr->scale = transform_component->scale;
@@ -38,7 +38,7 @@ public:
                 .rotation = {0.0f, 0.0f, 0.0f},
                 .scale = {1.0f, 1.0f, 1.0f},
                 .mesh_id = mesh_id
-            }, master_->getUUID());
+            }, game_object_->getUUID());
         }
     }
 };

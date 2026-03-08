@@ -12,6 +12,7 @@ public:
 
     virtual void addAttachment(Renderer::RenderPass& render_pass) {}
     virtual void setAttachment(Renderer::RenderSubpass& render_subpass) {}
+    virtual void setSubpassDependency(Renderer::RenderPass& render_pass) {}
     virtual void createRenderResource(std::shared_ptr<Renderer::Renderer> renderer, Resource& resource) {}
     virtual void executePreRenderPass(std::shared_ptr<Renderer::Renderer> renderer, Resource& resource) {}
     virtual void executeRenderPass(std::shared_ptr<Renderer::Renderer> renderer, Resource& resource) {}

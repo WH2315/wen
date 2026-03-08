@@ -118,4 +118,22 @@ private:
     std::unique_ptr<Buffer> buffer_;
 };
 
+class InFlightBuffer : public SpecificBuffer {
+public:
+    InFlightBuffer(uint64_t size, vk::BufferUsageFlags buffer_usage, VmaMemoryUsage memory_usage, VmaAllocationCreateFlags allocation_flags);
+    ~InFlightBuffer() override;
+
+    void* map(uint32_t index) { return in_flight_buffers_[index]->map(); }
+    void* map();
+    void unmap();
+
+    vk::Buffer getBuffer(uint32_t index) { return in_flight_buffers_[index]->buffer; }
+    vk::Buffer getBuffer() override { return in_flight_buffers_.front()->buffer; }
+    uint64_t getSize() override { return in_flight_buffers_.front()->size; }
+    void* getData() override { return in_flight_buffers_.front()->data; };
+
+private:
+    std::vector<std::unique_ptr<Buffer>> in_flight_buffers_;
+};
+
 }  // namespace wen::Renderer

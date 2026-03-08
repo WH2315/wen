@@ -56,7 +56,7 @@ void GameObject::addComponent(Component* component) {
         WEN_CORE_ERROR("component with uuid {} already exists in game object {}.", component->getComponentTypeUUID(), name_)
         return;
     }
-    component->master_ = this;
+    component->game_object_ = this;
     component->setupRTTI();
     component_map_.insert({component->getComponentTypeUUID(), component});
     components_.push_back(component);
@@ -64,10 +64,7 @@ void GameObject::addComponent(Component* component) {
 }
 
 void GameObject::removeComponent(Component* component) {
-    removeComponent(component->getComponentTypeUUID());
-}
-
-void GameObject::removeComponent(ComponentTypeUUID uuid) {
+    auto uuid = component->getComponentTypeUUID();
     auto iter = component_map_.find(uuid);
     if (iter == component_map_.end()) {
         WEN_CORE_ERROR("component with uuid {} does not exist in game object {}.", uuid, name_)
@@ -83,10 +80,6 @@ Component* GameObject::queryComponent(const std::string& class_name) {
         return component_map_.at(uuid);
     }
     return nullptr;
-}
-
-Component* GameObject::forceGetComponent(const std::string& class_name) {
-    return component_map_.at(global_context->component_type_uuid_system->get(class_name));
 }
 
 }  // namespace wen

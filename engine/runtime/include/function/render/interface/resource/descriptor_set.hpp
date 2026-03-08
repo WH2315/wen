@@ -35,6 +35,8 @@ public:
     DescriptorSet& addDescriptors(const std::vector<DescriptorSetLayoutBinding>& bindings);
     void build();
 
+    auto getDescriptorSets() const { return descriptor_sets_; }
+
     const vk::DescriptorSetLayoutBinding& getBinding(uint32_t binding);
 
     void bindUniforms(uint32_t binding, const std::vector<std::shared_ptr<UniformBuffer>>& uniform_buffers);

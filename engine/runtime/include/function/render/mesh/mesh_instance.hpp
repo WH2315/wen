@@ -4,6 +4,7 @@
 
 namespace wen {
 
+// 网格实例 52字节
 struct MeshInstance {
     alignas(16) glm::vec3 location;
     alignas(16) glm::vec3 rotation;

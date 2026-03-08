@@ -13,6 +13,7 @@ struct Configuration {
     uint32_t swapchain_image_height;
     bool is_enable_ray_tracing = true;
     uint32_t max_frames_in_flight = 2;
+    uint32_t current_frame_in_flight = 0;
     vk::SampleCountFlagBits msaa_samples = vk::SampleCountFlagBits::e1;
     bool msaa() const { return msaa_samples != vk::SampleCountFlagBits::e1; }
 };

@@ -9,6 +9,9 @@ class PerspectiveCameraComponent : public CameraComponent {
     REFLECT_CLASS("PerspectiveCameraComponent")
 
 public:
+    std::string getClassName() const override { return "PerspectiveCameraComponent"; }
+    static std::string GetClassName() { return "PerspectiveCameraComponent"; }
+
     PerspectiveCameraComponent(float fov_degrees, float aspect, float near, float far) {
         calculatePerspectiveMatrix(fov_degrees, aspect, near, far);
     }

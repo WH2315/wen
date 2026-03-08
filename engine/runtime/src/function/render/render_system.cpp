@@ -14,17 +14,17 @@ RenderSystem::RenderSystem(const Renderer::Configuration& config) {
 }
 
 void RenderSystem::createRenderer() {
-    renderer_ = std::make_unique<Renderers>();
-    swap_data_ = std::make_unique<SwapData>();
+    render_framework_ = std::make_unique<RenderFramework>();
+    render_data_ = std::make_unique<RenderData>();
 }
 
 void RenderSystem::render() {
-    renderer_->render();
+    render_framework_->render();
 }
 
 void RenderSystem::destroyRenderer() {
-    renderer_.reset();
-    swap_data_.reset();
+    render_framework_.reset();
+    render_data_.reset();
 }
 
 RenderSystem::~RenderSystem() {

@@ -4,6 +4,9 @@
 
 namespace wen {
 
-struct Resource {};
+struct Resource {
+    uint32_t tile_pixel_size;
+    uint32_t tile_x, tile_y;
+};
 
 }  // namespace wen

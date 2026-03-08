@@ -163,4 +163,28 @@ StorageBuffer::~StorageBuffer() {
     buffer_.reset();
 }
 
+InFlightBuffer::InFlightBuffer(uint64_t size, vk::BufferUsageFlags buffer_usage, VmaMemoryUsage memory_usage, VmaAllocationCreateFlags allocation_flags) {
+    in_flight_buffers_.reserve(renderer_config.max_frames_in_flight);
+    for (uint32_t i = 0; i < renderer_config.max_frames_in_flight; i++) {
+        in_flight_buffers_.push_back(std::make_unique<Buffer>(
+            size,
+            buffer_usage,
+            memory_usage,
+            allocation_flags
+        ));
+    }
+}
+
+void* InFlightBuffer::map() {
+    return in_flight_buffers_[renderer_config.current_frame_in_flight]->map();
+}
+
+void InFlightBuffer::unmap() {
+    in_flight_buffers_[renderer_config.current_frame_in_flight]->unmap();
+}
+
+InFlightBuffer::~InFlightBuffer() {
+    in_flight_buffers_.clear();
+}
+
 }  // namespace wen::Renderer

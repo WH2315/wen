@@ -6,6 +6,7 @@
 
 namespace wen {
 
+// 网格实例池，管理所有的网格实例
 class MeshInstancePool {
 public:
     MeshInstancePool(uint32_t max_mesh_instance_count);

@@ -49,10 +49,7 @@ GameObject* Scene::createGameObject(const std::string& name) {
 }
 
 void Scene::removeGameObject(GameObject* game_object) {
-    removeGameObject(game_object->getUUID());
-}
-
-void Scene::removeGameObject(GameObjectUUID uuid) {
+    auto uuid = game_object->getUUID();
     auto iter = game_object_map_.find(uuid);
     if (iter == game_object_map_.end()) {
         WEN_CORE_ERROR("game object with uuid {} does not exist in scene {}.", uuid, name_)
@@ -116,7 +113,7 @@ void SceneManager::swap() {
     }
     active_scene_ = change_scene_;
     change_scene_ = nullptr;
-    global_context->render_system->getSwapData()->clear();
+    global_context->render_system->getRenderData()->clear();
     start();
 }
 

@@ -26,7 +26,7 @@ public:
 
     void onStart() override {
         for (auto camera_component_class_name : {"CameraComponent", "OrthographicCameraComponent", "PerspectiveCameraComponent"}) {
-            camera_component = static_cast<CameraComponent*>(master_->queryComponent(camera_component_class_name));
+            camera_component = static_cast<CameraComponent*>(game_object_->queryComponent(camera_component_class_name));
             if (camera_component != nullptr) {
                 break;
             }
@@ -36,7 +36,7 @@ public:
             return;
         }
 
-        transform_component = master_->queryComponent<TransformComponent>();
+        transform_component = game_object_->queryComponent<TransformComponent>();
         if (transform_component == nullptr) {
             location = new glm::vec3(0, 0, 0);
             yaw = new float(0);
