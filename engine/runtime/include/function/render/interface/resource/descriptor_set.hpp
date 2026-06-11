@@ -45,10 +45,11 @@ public:
     void bindTexture(uint32_t binding, std::shared_ptr<SpecificTexture> texture, std::shared_ptr<Sampler> sampler);
     void bindInputAttachments(uint32_t binding, const std::shared_ptr<Renderer>& renderer, const std::vector<std::pair<std::string, std::shared_ptr<Sampler>>>& names_samplers);
     void bindInputAttachment(uint32_t binding, const std::shared_ptr<Renderer>& renderer, const std::string& name, std::shared_ptr<Sampler> sampler);
-    void bindStorageBuffers(uint32_t binding, const std::vector<std::shared_ptr<StorageBuffer>>& storage_buffers);
-    void bindStorageBuffer(uint32_t binding, std::shared_ptr<StorageBuffer> storage_buffer);
+    void bindStorageBuffers(uint32_t binding, const std::vector<std::shared_ptr<SpecificBuffer>>& storage_buffers);
+    void bindStorageBuffer(uint32_t binding, std::shared_ptr<SpecificBuffer> storage_buffer);
     void bindStorageImages(uint32_t binding, const std::vector<std::shared_ptr<StorageImage>>& storage_images);
     void bindStorageImage(uint32_t binding, std::shared_ptr<StorageImage> storage_image);
+    void bindDepthImages(uint32_t binding, const std::vector<std::shared_ptr<DepthImage>>& depth_images, std::shared_ptr<Sampler> sampler);
     void bindAccelerationStructures(uint32_t binding, const std::vector<std::shared_ptr<RayTracingInstance>>& instances);
     void bindAccelerationStructure(uint32_t binding, std::shared_ptr<RayTracingInstance> instance);
 

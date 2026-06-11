@@ -7,11 +7,13 @@ namespace wen {
 CameraSystem::CameraSystem() {
     current_camera_id_ = 0;
     current_primary_viewport_ = 0;
-    fixed_clip_ = false;
 
     auto interface = global_context->render_system->getInterface();
     viewport_camera_ = interface->createUniformBuffer(sizeof(CameraData));
     clip_camera_ = interface->createUniformBuffer(sizeof(CameraData));
+
+    fixed_clip_ = false;
+    editor_camera_active_ = false;
 }
 
 CameraSystem::~CameraSystem() {
@@ -42,22 +44,17 @@ void CameraSystem::removeCamera(CameraID id) {
 }
 
 void CameraSystem::reportCameraViewMatrix(CameraID id, const glm::mat4& view, bool is_editor_camera) {
-    cameras_.at(id).view = view;
-    if (editor_camera_active_ && !is_editor_camera) {
+    auto& camera_data = cameras_.at(id);
+    camera_data.view = view;
+    if (editor_camera_active_ && (!is_editor_camera)) {
         return;
     }
     if (id == current_primary_viewport_ || is_editor_camera) {
         static_cast<CameraData*>(viewport_camera_->getData())->view = view;
         if (!fixed_clip_) {
-            memcpy(clip_camera_->getData(), &cameras_.at(id).view, sizeof(glm::mat4));
+            static_cast<CameraData*>(clip_camera_->getData())->view = view;
         }
     }
-}
-
-void CameraSystem::reportCameraProjectMatrix(CameraID id, const glm::mat4& project, bool is_editor_camera) {
-    float near = project[3][2] / (project[2][2] - 1);
-    float far = project[3][2] / (project[2][2] + 1);
-    reportCameraProjectMatrix(id, project, near, far, is_editor_camera);
 }
 
 void CameraSystem::reportCameraProjectMatrix(CameraID id, const glm::mat4& project, float near, float far, bool is_editor_camera) {
@@ -65,7 +62,7 @@ void CameraSystem::reportCameraProjectMatrix(CameraID id, const glm::mat4& proje
     camera_data.project = project;
     camera_data.near = near;
     camera_data.far = far;
-    if (editor_camera_active_ && !is_editor_camera) {
+    if (editor_camera_active_ && (!is_editor_camera)) {
         return;
     }
     if (id == current_primary_viewport_ || is_editor_camera) {

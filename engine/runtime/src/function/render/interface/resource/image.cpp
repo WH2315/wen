@@ -257,6 +257,56 @@ StorageImage::~StorageImage() {
     image_.reset();
 };
 
+DepthImage::DepthImage(uint32_t width, uint32_t height, vk::Format format, vk::ImageUsageFlags usage, uint32_t mip_levels) : mip_levels_(mip_levels) {
+    image_ = std::make_unique<Image>(
+        width, height, format, usage,
+        vk::SampleCountFlagBits::e1,
+        VMA_MEMORY_USAGE_GPU_ONLY,
+        VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT,
+        mip_levels
+    );
+    transitionImageLayout(
+        image_->image,
+        vk::ImageAspectFlagBits::eColor,
+        mip_levels,
+        {
+            vk::ImageLayout::eUndefined,
+            vk::AccessFlagBits::eNone,
+            vk::PipelineStageFlagBits::eTopOfPipe
+        },
+        {
+            vk::ImageLayout::eGeneral,
+            vk::AccessFlagBits::eShaderRead | vk::AccessFlagBits::eShaderWrite,
+            vk::PipelineStageFlagBits::eComputeShader
+        }
+    );
+    image_view_ = createImageView(
+        image_->image,
+        format,
+        vk::ImageAspectFlagBits::eColor,
+        mip_levels
+    );
+
+    vk::ImageViewCreateInfo image_view_ci{};
+    image_view_ci.setImage(image_->image)
+        .setFormat(vk::Format::eR32Sfloat)
+        .setViewType(vk::ImageViewType::e2D)
+        .setComponents({vk::ComponentSwizzle::eR, vk::ComponentSwizzle::eIdentity, vk::ComponentSwizzle::eIdentity, vk::ComponentSwizzle::eIdentity})
+        .setSubresourceRange({vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1});
+    for (uint32_t i = 0; i < mip_levels; i++) {
+        image_view_ci.subresourceRange.setBaseMipLevel(i);
+        mipmap_views_.push_back(manager->device->device.createImageView(image_view_ci));
+    }
+}
+
+DepthImage::~DepthImage() {
+    for (auto view : mipmap_views_) {
+        manager->device->device.destroyImageView(view);
+    }
+    manager->device->device.destroyImageView(image_view_);
+    image_.reset();
+};
+
 Sampler::Sampler(const SamplerOptions& options) {
     vk::SamplerCreateInfo sampler_ci;
     sampler_ci.setMagFilter(options.mag_filter)

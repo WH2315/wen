@@ -135,7 +135,7 @@ void DescriptorSet::bindInputAttachment(uint32_t binding, const std::shared_ptr<
     bindInputAttachments(binding, renderer, {{name, sampler}});
 }
 
-void DescriptorSet::bindStorageBuffers(uint32_t binding, const std::vector<std::shared_ptr<StorageBuffer>>& storage_buffers) {
+void DescriptorSet::bindStorageBuffers(uint32_t binding, const std::vector<std::shared_ptr<SpecificBuffer>>& storage_buffers) {
     auto layout_binding = getBinding(binding);
     if (layout_binding.descriptorType != vk::DescriptorType::eStorageBuffer) {
         WEN_CORE_ERROR("binding {} is not storage buffer!", binding)
@@ -148,7 +148,7 @@ void DescriptorSet::bindStorageBuffers(uint32_t binding, const std::vector<std::
     for (uint32_t i = 0; i < renderer_config.max_frames_in_flight; i++) {
         std::vector<vk::DescriptorBufferInfo> buffers(layout_binding.descriptorCount);
         for (uint32_t j = 0; j < layout_binding.descriptorCount; j++) {
-            buffers[j].setBuffer(storage_buffers[j]->getBuffer())
+            buffers[j].setBuffer(storage_buffers[j]->getBuffer(i))
                 .setOffset(0)
                 .setRange(storage_buffers[j]->getSize());
         }
@@ -162,7 +162,7 @@ void DescriptorSet::bindStorageBuffers(uint32_t binding, const std::vector<std::
     }
 }
 
-void DescriptorSet::bindStorageBuffer(uint32_t binding, std::shared_ptr<StorageBuffer> storage_buffer) {
+void DescriptorSet::bindStorageBuffer(uint32_t binding, std::shared_ptr<SpecificBuffer> storage_buffer) {
     bindStorageBuffers(binding, {storage_buffer});
 }
 
@@ -195,6 +195,27 @@ void DescriptorSet::bindStorageImages(uint32_t binding, const std::vector<std::s
 
 void DescriptorSet::bindStorageImage(uint32_t binding, std::shared_ptr<StorageImage> storage_image) {
     bindStorageImages(binding, {storage_image});
+}
+
+void DescriptorSet::bindDepthImages(uint32_t binding, const std::vector<std::shared_ptr<DepthImage>>& depth_images, std::shared_ptr<Sampler> sampler) {
+    auto layout_binding = getBinding(binding);
+    if (layout_binding.descriptorType != vk::DescriptorType::eCombinedImageSampler) {
+        WEN_CORE_ERROR("binding {} is not combined image sampler!", binding)
+        return;
+    }
+    for (uint32_t i = 0; i < renderer_config.max_frames_in_flight; i++) {
+        vk::DescriptorImageInfo image_info{};
+        image_info.setImageLayout(depth_images[i]->getImageLayout())
+            .setImageView(depth_images[i]->getImageView())
+            .setSampler(sampler->sampler);
+        vk::WriteDescriptorSet write;
+        write.setDstSet(descriptor_sets_[i])
+            .setDstBinding(layout_binding.binding)
+            .setDstArrayElement(0)
+            .setDescriptorType(layout_binding.descriptorType)
+            .setImageInfo({image_info});
+        manager->device->device.updateDescriptorSets({write}, {});
+    }
 }
 
 void DescriptorSet::bindAccelerationStructures(uint32_t binding, const std::vector<std::shared_ptr<RayTracingInstance>>& instances) {

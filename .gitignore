@@ -1,6 +1,6 @@
 .vscode
 
 cmake-build
-cmake-build-msvc
+build
 
 auto_generated

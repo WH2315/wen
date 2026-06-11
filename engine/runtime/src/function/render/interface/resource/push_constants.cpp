@@ -4,7 +4,7 @@
 
 namespace wen::Renderer {
 
-PushConstants::PushConstants(ShaderStages stages, const std::list<std::pair<std::string, ConstantType>>& infos) {
+PushConstants::PushConstants(ShaderStages stages, const std::vector<std::pair<std::string, ConstantType>>& infos) {
     total_size = 0;
     for (const auto info : infos) {
         uint32_t size = convert<uint32_t>(info.second);

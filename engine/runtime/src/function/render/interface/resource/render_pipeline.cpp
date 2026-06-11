@@ -206,13 +206,13 @@ void GraphicsRenderPipeline::compile(const GraphicsRenderPipelineOptions& option
         .setTopology(vk::PrimitiveTopology::eTriangleList);
     
     // 4. viewport
-    vk::PipelineViewportStateCreateInfo viewport = {};
+    vk::PipelineViewportStateCreateInfo viewport_state = {};
     auto width = renderer_config.swapchain_image_width, height = renderer_config.swapchain_image_height;
     auto w = static_cast<float>(width), h = static_cast<float>(height);
-    vk::Viewport view(0.0f, 0.0f, w, h, 0.0f, 1.0f);
+    vk::Viewport viewport(0.0f, h, w, -h, 0.0f, 1.0f);
     vk::Rect2D scissor({0, 0}, {width, height});
-    viewport.setViewportCount(1)
-        .setViewports(view)
+    viewport_state.setViewportCount(1)
+        .setViewports(viewport)
         .setScissorCount(1)
         .setScissors(scissor);
     
@@ -272,7 +272,7 @@ void GraphicsRenderPipeline::compile(const GraphicsRenderPipelineOptions& option
         .setPVertexInputState(&vertex_input)
         .setPInputAssemblyState(&input_assembly)
         .setPTessellationState(nullptr)
-        .setPViewportState(&viewport)
+        .setPViewportState(&viewport_state)
         .setPRasterizationState(&rasterizer)
         .setPMultisampleState(&multisample)
         .setPDepthStencilState(&depth_stencil)

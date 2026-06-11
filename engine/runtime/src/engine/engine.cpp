@@ -6,6 +6,7 @@ namespace wen {
 void Engine::startupEngine() {
     global_context = new GlobalContext;
     global_context->startup();
+    global_context->reflect_system->registerReflectProperties();
     global_context->render_system->createRenderer();
     prepareTimer();
     WEN_CORE_INFO("engine startup.")
@@ -74,14 +75,14 @@ void Engine::tickLogic() {
         global_context->scene_manager->tick(delta_time_);
     }
     float benchmark_dt = benchmark_timer_->tick();
-    WEN_CORE_DEBUG("BENCHMARK: Logic Delta Time(ms): {}", benchmark_dt * 1000)
+    // WEN_CORE_DEBUG("BENCHMARK: Logic Delta Time(ms): {}", benchmark_dt * 1000)
 }
 
 void Engine::tickRender() {
     benchmark_timer_->tick();
     global_context->render_system->render(); 
     float benchmark_dt = benchmark_timer_->tick();
-    WEN_CORE_DEBUG("BENCHMARK: Render CPU Delta Time(ms): {}", benchmark_dt * 1000)
+    // WEN_CORE_DEBUG("BENCHMARK: Render CPU Delta Time(ms): {}", benchmark_dt * 1000)
     delta_time_ = main_timer_->tick();
     global_context->input_system->tick();
 }

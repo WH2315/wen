@@ -47,10 +47,10 @@ struct ResolveAttachmentInfo {
 
 class RenderPass {
 public:
-    RenderPass(bool auto_load);
+    RenderPass();
     ~RenderPass();
 
-    void addAttachment(const std::string& name, AttachmentType type);
+    void addAttachment(const std::string& name, AttachmentType type, vk::ImageUsageFlags additional_usage = {});
     RenderSubpass& addSubpass(const std::string& name);
     void addSubpassDependency(const std::string& src, const std::string& dst, std::array<vk::PipelineStageFlags, 2> stage, std::array<vk::AccessFlags, 2> access);
 

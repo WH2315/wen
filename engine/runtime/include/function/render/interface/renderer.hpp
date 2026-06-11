@@ -28,6 +28,11 @@ public:
     void bindPipeline(const std::shared_ptr<RayTracingRenderPipeline>& render_pipeline);
     void bindDescriptorSets(const std::shared_ptr<RayTracingRenderPipeline>& render_pipeline);
     void pushConstants(const std::shared_ptr<RayTracingRenderPipeline>& render_pipeline);
+    void bindPipeline(const std::shared_ptr<ComputeRenderPipeline>& render_pipeline);
+    void bindDescriptorSets(const std::shared_ptr<ComputeRenderPipeline>& render_pipeline);
+    void pushConstants(const std::shared_ptr<ComputeRenderPipeline>& render_pipeline);
+    void dispatch(uint32_t group_count_x, uint32_t group_count_y, uint32_t group_count_z);
+    void pipelineBarrier(const vk::PipelineStageFlags& src_stage, const vk::PipelineStageFlags& dst_stage, const std::vector<vk::BufferMemoryBarrier>& buffer_barriers, const std::vector<vk::ImageMemoryBarrier>& image_barriers);
     void setViewport(float x, float y, float width, float height);
     void setScissor(int x, int y, uint32_t width, uint32_t height);
     void bindVertexBuffers(const std::vector<std::shared_ptr<VertexBuffer>>& vertex_buffers, uint32_t first_binding = 0);
@@ -44,6 +49,7 @@ public:
     void unregisterResourceRecreateCallback(uint32_t callback_id);
 
 public:
+    uint32_t getCurrentFrame() { return current_frame_; }
     vk::CommandBuffer getCurrentBuffer() { return current_buffer_; }
     void updateFramebuffers();
     void updateSwapchain();

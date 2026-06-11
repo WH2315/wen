@@ -3,10 +3,11 @@
 namespace wen {
 
 MeshInstancePool::MeshInstancePool(uint32_t max_mesh_instance_count) {
+    current_instance_count = 0;
     // 网格实例数据存储在一个连续的缓冲区中，方便一次性上传到GPU
-    mesh_instance_buffer = std::make_shared<Renderer::Buffer>(
+    mesh_instance_buffer = std::make_shared<Renderer::StorageBuffer>(
         sizeof(MeshInstance) * max_mesh_instance_count,
-        vk::BufferUsageFlagBits::eStorageBuffer,
+        vk::BufferUsageFlags{},
         VMA_MEMORY_USAGE_CPU_TO_GPU,
         VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT
     );
@@ -31,7 +32,7 @@ MeshInstance* MeshInstancePool::getMeshInstancePtr(GameObjectUUID uuid) {
 void MeshInstancePool::clear() {
     mesh_instance_buffer_ptr = static_cast<MeshInstance*>(mesh_instance_buffer->map());
     current_instance_count = 0;
-    memset(mesh_instance_buffer_ptr, 0, mesh_instance_buffer->size);
+    memset(mesh_instance_buffer_ptr, 0, mesh_instance_buffer->getSize());
 }
 
 }  // namespace wen

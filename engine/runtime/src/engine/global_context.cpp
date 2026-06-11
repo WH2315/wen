@@ -14,15 +14,15 @@ void GlobalContext::startup() {
     render_system.initialize(Renderer::Configuration{.debug = true});
     game_object_uuid_allocator.initialize();
     component_type_uuid_system.initialize();
-    scene_manager.initialize();
     asset_system.initialize();
     camera_system.initialize();
+    scene_manager.initialize();
 }
 
 void GlobalContext::shutdown() {
+    scene_manager.destroy();
     camera_system.destroy();
     asset_system.destroy();
-    scene_manager.destroy();
     component_type_uuid_system.destroy();
     game_object_uuid_allocator.destroy();
     render_system.destroy();

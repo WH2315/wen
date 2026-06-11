@@ -9,8 +9,8 @@ Interface::Interface(const std::string& path) : path_(path) {
     gltf_dir_ = path_ + "/gltf";
 }
 
-std::shared_ptr<RenderPass> Interface::createRenderPass(bool auto_load) {
-    return std::make_shared<RenderPass>(auto_load);
+std::shared_ptr<RenderPass> Interface::createRenderPass() {
+    return std::make_shared<RenderPass>();
 }
 
 std::shared_ptr<Renderer> Interface::createRenderer(std::shared_ptr<RenderPass> render_pass) {
@@ -71,7 +71,7 @@ std::shared_ptr<Sampler> Interface::createSampler(const SamplerOptions& options)
     return std::make_shared<Sampler>(options);
 }
 
-std::shared_ptr<PushConstants> Interface::createPushConstants(ShaderStages stages, const std::list<std::pair<std::string, ConstantType>>& infos) {
+std::shared_ptr<PushConstants> Interface::createPushConstants(ShaderStages stages, const std::vector<std::pair<std::string, ConstantType>>& infos) {
     return std::make_shared<PushConstants>(stages, infos);
 }
 

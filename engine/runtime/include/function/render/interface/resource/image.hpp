@@ -67,6 +67,25 @@ private:
     vk::ImageView image_view_;
 };
 
+class DepthImage : public SpecificTexture {
+public:
+    DepthImage(uint32_t width, uint32_t height, vk::Format format, vk::ImageUsageFlags usage, uint32_t mip_levels);
+    ~DepthImage() override;
+
+    vk::ImageLayout getImageLayout() override { return vk::ImageLayout::eGeneral; }
+    vk::ImageView getImageView() override { return image_view_; }
+    uint32_t getMipLevels() override { return mip_levels_; }
+
+    auto getImage() { return image_->image; }
+    auto getMipmapViews() { return mipmap_views_; }
+
+private:
+    uint32_t mip_levels_;
+    std::unique_ptr<Image> image_;
+    vk::ImageView image_view_;
+    std::vector<vk::ImageView> mipmap_views_;
+};
+
 struct SamplerOptions {
     vk::Filter mag_filter = vk::Filter::eLinear;
     vk::Filter min_filter = vk::Filter::eLinear;

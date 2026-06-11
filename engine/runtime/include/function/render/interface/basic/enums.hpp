@@ -238,6 +238,7 @@ enum class AttachmentType {
     eStencil,
     eRGBA8Snorm,
     eRGBA32Sfloat,
+    eRG32Uint,
 };
 
 enum class InputRate {

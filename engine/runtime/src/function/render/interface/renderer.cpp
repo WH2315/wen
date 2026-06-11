@@ -205,6 +205,35 @@ void Renderer::pushConstants(const std::shared_ptr<RayTracingRenderPipeline>& re
     }
 }
 
+void Renderer::bindPipeline(const std::shared_ptr<ComputeRenderPipeline>& render_pipeline) {
+    current_buffer_.bindPipeline(render_pipeline->bind_point, render_pipeline->pipeline);
+}
+
+void Renderer::bindDescriptorSets(const std::shared_ptr<ComputeRenderPipeline>& render_pipeline) {
+    if (!render_pipeline->descriptor_sets.empty()) {
+        std::vector<vk::DescriptorSet> sets;
+        for (const auto& descriptor_set : render_pipeline->descriptor_sets) {
+            sets.push_back(descriptor_set.value()->descriptor_sets_[current_frame_]);
+        }
+        current_buffer_.bindDescriptorSets(render_pipeline->bind_point, render_pipeline->pipeline_layout, 0, sets, {});
+    }
+}
+
+void Renderer::pushConstants(const std::shared_ptr<ComputeRenderPipeline>& render_pipeline) {
+    if (render_pipeline->push_constants.has_value()) {
+        auto push_constants = render_pipeline->push_constants.value();
+        current_buffer_.pushConstants(render_pipeline->pipeline_layout, push_constants->range.stageFlags, 0, push_constants->total_size, push_constants->constants.data());
+    }
+}
+
+void Renderer::dispatch(uint32_t group_count_x, uint32_t group_count_y, uint32_t group_count_z) {
+    current_buffer_.dispatch(group_count_x, group_count_y, group_count_z);
+}
+
+void Renderer::pipelineBarrier(const vk::PipelineStageFlags& src_stage, const vk::PipelineStageFlags& dst_stage, const std::vector<vk::BufferMemoryBarrier>& buffer_barriers, const std::vector<vk::ImageMemoryBarrier>& image_barriers) {
+    current_buffer_.pipelineBarrier(src_stage, dst_stage, {}, {}, buffer_barriers, image_barriers);
+}
+
 void Renderer::setViewport(float x, float y, float width, float height) {
     vk::Viewport viewport{x, y, width, height, 0.0f, 1.0f};
     current_buffer_.setViewport(0, {viewport});

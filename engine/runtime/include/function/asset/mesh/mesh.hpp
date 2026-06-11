@@ -12,6 +12,7 @@ struct MeshData {
 
 constexpr size_t max_level_of_details = 7;
 
+// 64
 struct MeshDescriptor {
     alignas(4) uint32_t lod_count;
     alignas(4) PrimitiveID lods[max_level_of_details];

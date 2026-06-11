@@ -13,10 +13,6 @@ public:
     static std::string GetClassName() { return "OrthographicCameraComponent"; }
 
     OrthographicCameraComponent(float left, float right, float bottom, float top, float near, float far) {
-        calculateOrthographicMatrix(left, right, bottom, top, near, far);
-    }
-
-    void calculateOrthographicMatrix(float left, float right, float bottom, float top, float near, float far) {
         global_context->camera_system->reportCameraProjectMatrix(camera_id, glm::ortho(left, right, bottom, top, near, far), near, far);
     }
 };

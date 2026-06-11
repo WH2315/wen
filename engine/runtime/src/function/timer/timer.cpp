@@ -9,7 +9,7 @@ Timer::Timer(float time_rate) : time_rate_(time_rate) {
 }
 
 float Timer::tick(std::chrono::milliseconds dt_ms) {
-    auto dt = std::chrono::duration_cast<std::chrono::milliseconds>(
+    auto dt = std::chrono::duration_cast<std::chrono::microseconds>(
                   clock_.now() - last_time_)
                   .count();
     auto wait =

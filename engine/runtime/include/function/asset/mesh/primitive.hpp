@@ -11,11 +11,12 @@ using PrimitiveID = uint32_t;
 struct PrimitiveData {
     std::vector<glm::vec3> positions;
     std::vector<glm::vec3> normals;
-    std::vector<glm::vec2> tex_coords;
+    std::vector<glm::vec2> texcoords;
     std::vector<glm::vec3> colors;
     std::vector<uint32_t> indices;
 };
 
+// 16
 struct PrimitiveDescriptor {
     alignas(4) int32_t vertex_offset;
     alignas(4) uint32_t first_index;

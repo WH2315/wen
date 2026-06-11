@@ -27,7 +27,7 @@ class SpecificBuffer {
 public:
     SpecificBuffer() = default;
     virtual ~SpecificBuffer() = default;
-    virtual vk::Buffer getBuffer() = 0;
+    virtual vk::Buffer getBuffer(uint32_t in_flight_index = 0) = 0;
     virtual uint64_t getSize() = 0;
     virtual void* getData() = 0;
 };
@@ -50,7 +50,7 @@ public:
         return offset + data.size();
     }
 
-    vk::Buffer getBuffer() override { return buffer_->buffer; }
+    vk::Buffer getBuffer(uint32_t in_flight_index = 0) override { return buffer_->buffer; }
     uint64_t getSize() override { return buffer_->size; }
     void* getData() override { return buffer_->data; }
 
@@ -78,7 +78,7 @@ public:
     }
 
     vk::IndexType getIndexType() { return index_type_; }
-    vk::Buffer getBuffer() override { return buffer_->buffer; }
+    vk::Buffer getBuffer(uint32_t in_flight_index = 0) override { return buffer_->buffer; }
     uint64_t getSize() override { return buffer_->size; }
     void* getData() override { return buffer_->data; }
 
@@ -93,7 +93,7 @@ public:
     UniformBuffer(uint64_t size);
     ~UniformBuffer() override;
 
-    vk::Buffer getBuffer() override { return buffer_->buffer; }
+    vk::Buffer getBuffer(uint32_t in_flight_index = 0) override { return buffer_->buffer; }
     uint64_t getSize() override { return buffer_->size; }
     void* getData() override { return buffer_->data; };
 
@@ -110,7 +110,7 @@ public:
     void flush(vk::DeviceSize size, const vk::Buffer& buffer);
     void unmap();
 
-    vk::Buffer getBuffer() override { return buffer_->buffer; }
+    vk::Buffer getBuffer(uint32_t in_flight_index = 0) override { return buffer_->buffer; }
     uint64_t getSize() override { return buffer_->size; }
     void* getData() override { return buffer_->data; }
 
@@ -127,8 +127,7 @@ public:
     void* map();
     void unmap();
 
-    vk::Buffer getBuffer(uint32_t index) { return in_flight_buffers_[index]->buffer; }
-    vk::Buffer getBuffer() override { return in_flight_buffers_.front()->buffer; }
+    vk::Buffer getBuffer(uint32_t in_flight_index = 0) override { return in_flight_buffers_[in_flight_index]->buffer; }
     uint64_t getSize() override { return in_flight_buffers_.front()->size; }
     void* getData() override { return in_flight_buffers_.front()->data; };
 

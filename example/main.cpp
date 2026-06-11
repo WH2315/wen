@@ -15,7 +15,7 @@ int main() {
 
     auto interface = std::make_unique<Renderer::Interface>("example/resources");
 
-    auto render_pass = interface->createRenderPass(false);
+    auto render_pass = interface->createRenderPass();
     render_pass->addAttachment(Renderer::SWAPCHAIN_IMAGE_ATTACHMENT, Renderer::AttachmentType::eColor);
     render_pass->addAttachment(Renderer::DEPTH_ATTACHMENT, Renderer::AttachmentType::eDepth);
 

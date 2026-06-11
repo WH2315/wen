@@ -22,15 +22,15 @@ public:
 
     std::shared_ptr<Renderer::VertexBuffer> position_buffer;
     std::shared_ptr<Renderer::VertexBuffer> normal_buffer;
-    std::shared_ptr<Renderer::VertexBuffer> tex_coord_buffer;
+    std::shared_ptr<Renderer::VertexBuffer> texcoord_buffer;
     std::shared_ptr<Renderer::VertexBuffer> color_buffer;
     std::shared_ptr<Renderer::IndexBuffer> index_buffer;
 
-    std::shared_ptr<Renderer::Buffer> primitive_descriptor_buffer;
+    std::shared_ptr<Renderer::StorageBuffer> primitive_descriptor_buffer;
     PrimitiveDescriptor* primitive_descriptor_buffer_ptr;
     uint32_t current_primitive_descriptor_count;
 
-    std::shared_ptr<Renderer::Buffer> mesh_descriptor_buffer;
+    std::shared_ptr<Renderer::StorageBuffer> mesh_descriptor_buffer;
     MeshDescriptor* mesh_descriptor_buffer_ptr;
     uint32_t current_mesh_descriptor_count;
 };

@@ -9,7 +9,7 @@ class Interface {
 public:
     Interface(const std::string& path);
 
-    std::shared_ptr<RenderPass> createRenderPass(bool auto_load = true);
+    std::shared_ptr<RenderPass> createRenderPass();
     std::shared_ptr<Renderer> createRenderer(std::shared_ptr<RenderPass> render_pass);
     std::shared_ptr<Shader> loadShader(const std::string& filename, ShaderStage stage);
     std::shared_ptr<GraphicsShaderProgram> createGraphicsShaderProgram();
@@ -22,7 +22,7 @@ public:
     std::shared_ptr<DataTexture> createTexture(const uint8_t* data, uint32_t width, uint32_t height, uint32_t mip_levels = 0);
     std::shared_ptr<SpecificTexture> createTexture(const std::string& filename, uint32_t mip_levels = 0);
     std::shared_ptr<Sampler> createSampler(const SamplerOptions& options = {});
-    std::shared_ptr<PushConstants> createPushConstants(ShaderStages stages, const std::list<std::pair<std::string, ConstantType>>& infos);
+    std::shared_ptr<PushConstants> createPushConstants(ShaderStages stages, const std::vector<std::pair<std::string, ConstantType>>& infos);
     std::shared_ptr<NormalModel> loadNormalModel(const std::string& filename, const std::vector<std::string>& blacklist = {});
     std::shared_ptr<StorageImage> createStorageImage(uint32_t width, uint32_t height, vk::Format format, vk::ImageUsageFlags usage = {});
     std::shared_ptr<RayTracingShaderProgram> createRayTracingShaderProgram();

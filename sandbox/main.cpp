@@ -15,8 +15,10 @@ int main() {
 
     auto camera = scene->createGameObject("camera");
     camera->addComponent(new CameraControllerComponent);
-    camera->addComponent(new TransformComponent);
-    camera->addComponent(new CameraComponent);
+    auto transform = new TransformComponent;
+    transform->location = {0, 0, -5};
+    camera->addComponent(transform);
+    camera->addComponent(new PerspectiveCameraComponent(60, 1920.0f, 1080.0f, 0.1, 1000));
     int n = 4, n2 = n / 2;
     for (int i = 0; i < n * n * n; i++) {
         auto dragon = scene->createGameObject("dragon");

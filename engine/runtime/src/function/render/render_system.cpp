@@ -14,8 +14,8 @@ RenderSystem::RenderSystem(const Renderer::Configuration& config) {
 }
 
 void RenderSystem::createRenderer() {
-    render_framework_ = std::make_unique<RenderFramework>();
     render_data_ = std::make_unique<RenderData>();
+    render_framework_ = std::make_unique<RenderFramework>();
 }
 
 void RenderSystem::render() {
@@ -32,7 +32,6 @@ RenderSystem::~RenderSystem() {
 
     Renderer::manager->destroy();
     Renderer::manager = nullptr;
-    delete Renderer::manager;
     Renderer::Context::quit();
     glslang::FinalizeProcess();
 }

@@ -12,23 +12,23 @@ MeshPool::MeshPool(uint64_t vertex_memory_size, uint64_t index_memory_size, uint
 
     position_buffer = interface->createVertexBuffer(sizeof(glm::vec3), max_vertex_count, vk::BufferUsageFlagBits::eStorageBuffer);
     normal_buffer = interface->createVertexBuffer(sizeof(glm::vec3), max_vertex_count, vk::BufferUsageFlagBits::eStorageBuffer);
-    tex_coord_buffer = interface->createVertexBuffer(sizeof(glm::vec2), max_vertex_count, vk::BufferUsageFlagBits::eStorageBuffer);
+    texcoord_buffer = interface->createVertexBuffer(sizeof(glm::vec2), max_vertex_count, vk::BufferUsageFlagBits::eStorageBuffer);
     color_buffer = interface->createVertexBuffer(sizeof(glm::vec3), max_vertex_count, vk::BufferUsageFlagBits::eStorageBuffer);
     index_buffer = interface->createIndexBuffer(Renderer::IndexType::eUint32, max_index_count, vk::BufferUsageFlagBits::eStorageBuffer);
 
     current_primitive_descriptor_count = 0;
-    primitive_descriptor_buffer = std::make_shared<Renderer::Buffer>(
+    primitive_descriptor_buffer = std::make_shared<Renderer::StorageBuffer>(
         sizeof(PrimitiveDescriptor) * max_primitive_descriptor_count,
-        vk::BufferUsageFlagBits::eStorageBuffer,
+        vk::BufferUsageFlags{},
         VMA_MEMORY_USAGE_CPU_TO_GPU,
         VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT
     );
     primitive_descriptor_buffer_ptr = static_cast<PrimitiveDescriptor*>(primitive_descriptor_buffer->map());
 
     current_mesh_descriptor_count = 0;
-    mesh_descriptor_buffer = std::make_shared<Renderer::Buffer>(
+    mesh_descriptor_buffer = std::make_shared<Renderer::StorageBuffer>(
         sizeof(MeshDescriptor) * max_mesh_descriptor_count,
-        vk::BufferUsageFlagBits::eStorageBuffer,
+        vk::BufferUsageFlags{},
         VMA_MEMORY_USAGE_CPU_TO_GPU,
         VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT
     );
@@ -38,7 +38,7 @@ MeshPool::MeshPool(uint64_t vertex_memory_size, uint64_t index_memory_size, uint
 MeshPool::~MeshPool() {
     position_buffer.reset();
     normal_buffer.reset();
-    tex_coord_buffer.reset();
+    texcoord_buffer.reset();
     color_buffer.reset();
     index_buffer.reset();
 }
@@ -69,7 +69,7 @@ MeshID MeshPool::uploadMeshData(const MeshData& mesh_data) {
     for (auto& primitive : mesh_data.lods) {
         position_buffer->setData(primitive.positions, current_vertex_count);
         normal_buffer->setData(primitive.normals, current_vertex_count);
-        tex_coord_buffer->setData(primitive.tex_coords, current_vertex_count);
+        texcoord_buffer->setData(primitive.texcoords, current_vertex_count);
         color_buffer->setData(primitive.colors, current_vertex_count);
         index_buffer->setData(primitive.indices, current_index_count);
 

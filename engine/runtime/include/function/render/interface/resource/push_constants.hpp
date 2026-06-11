@@ -8,7 +8,7 @@ using ConstantType = VertexType;
 
 class PushConstants {
 public:
-    PushConstants(ShaderStages stages, const std::list<std::pair<std::string, ConstantType>>& infos);
+    PushConstants(ShaderStages stages, const std::vector<std::pair<std::string, ConstantType>>& infos);
     ~PushConstants();
 
     void pushConstant(const std::string& name, const void* data);

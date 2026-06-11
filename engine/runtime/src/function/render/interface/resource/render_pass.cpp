@@ -64,12 +64,7 @@ vk::AttachmentReference RenderSubpass::createAttachmentReference(const std::stri
     return reference;
 }
 
-RenderPass::RenderPass(bool auto_load) {
-    if (auto_load) {
-        addAttachment(SWAPCHAIN_IMAGE_ATTACHMENT, AttachmentType::eColor);
-        addAttachment(DEPTH_ATTACHMENT, AttachmentType::eDepth);
-    }
-}
+RenderPass::RenderPass() {}
 
 RenderPass::~RenderPass() {
     attachments.clear();
@@ -84,7 +79,7 @@ RenderPass::~RenderPass() {
     final_dependencies.clear();
 }
 
-void RenderPass::addAttachment(const std::string& name, AttachmentType type) {
+void RenderPass::addAttachment(const std::string& name, AttachmentType type, vk::ImageUsageFlags additional_usage) {
     attachment_indices_.insert(std::make_pair(name, attachments.size()));
     auto& attachment = attachments.emplace_back();
 
@@ -170,7 +165,25 @@ void RenderPass::addAttachment(const std::string& name, AttachmentType type) {
                 attachment.attachment.setFinalLayout(vk::ImageLayout::eColorAttachmentOptimal);
             }
             break;
+        case AttachmentType::eRG32Uint:
+            attachment.attachment
+                .setFormat(vk::Format::eR32G32Uint)
+                .setFinalLayout(vk::ImageLayout::eShaderReadOnlyOptimal);
+            attachment.usage = vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eInputAttachment | vk::ImageUsageFlagBits::eSampled;
+            attachment.aspect = vk::ImageAspectFlagBits::eColor;
+            attachment.clear_color = vk::ClearColorValue(std::array<float, 4>{0.0f, 0.0f, 0.0f, 1.0f});
+            if (renderer_config.msaa()) {
+                auto& resolve_attachment = resolve_attachments.emplace_back();
+                resolve_attachment.name = name;
+                resolve_attachment.attachment = attachment.attachment;
+                resolve_attachment.attachment.setSamples(vk::SampleCountFlagBits::e1)
+                    .setLoadOp(vk::AttachmentLoadOp::eDontCare);
+                resolve_attachment.offset = resolve_attachments.size() - 1;
+                attachment.attachment.setFinalLayout(vk::ImageLayout::eColorAttachmentOptimal);
+            }
+            break;
     }
+    attachment.usage |= additional_usage;
 
     // Ensure the swapchain color attachment resolves to PRESENT so queue present is valid.
     if (name == SWAPCHAIN_IMAGE_ATTACHMENT) {

@@ -11,7 +11,7 @@ public:
     Singleton(const Singleton&) = delete;
     Singleton(Singleton&&) = delete;
 
-    ~Singleton() { destroy(); }
+    ~Singleton() = default;
 
     template <typename... Args>
     void initialize(Args&&... args) {

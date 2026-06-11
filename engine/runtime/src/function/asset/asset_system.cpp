@@ -9,12 +9,12 @@ namespace wen {
 struct ObjVertex {
     glm::vec3 position;
     glm::vec3 normal;
-    glm::vec2 tex_coord;
+    glm::vec2 texcoord;
     glm::vec3 color;
 
     bool operator==(const ObjVertex& other) const {
         return position == other.position && normal == other.normal &&
-               tex_coord == other.tex_coord && color == other.color;
+               texcoord == other.texcoord && color == other.color;
     }
 };
 
@@ -29,7 +29,7 @@ struct hash<wen::ObjVertex> {
                   1) ^
                  (hash<glm::vec3>()(vertex.color) << 1)) >>
                 1) ^
-               (hash<glm::vec2>()(vertex.tex_coord) << 1);
+               (hash<glm::vec2>()(vertex.texcoord) << 1);
     }
 };
 }  // namespace std
@@ -109,9 +109,9 @@ MeshID AssetSystem::loadMesh(const std::string& filename, const std::vector<std:
                 attrib.normals[3 * index.normal_index + 2]
             };
             if (attrib.texcoords.empty()) {
-                vertex.tex_coord = {0, 0};
+                vertex.texcoord = {0, 0};
             } else {
-                vertex.tex_coord = {
+                vertex.texcoord = {
                     attrib.texcoords[2 * index.texcoord_index + 0],
                     attrib.texcoords[2 * index.texcoord_index + 1],
                 };
@@ -133,7 +133,7 @@ MeshID AssetSystem::loadMesh(const std::string& filename, const std::vector<std:
                 unique_vertices.insert(std::make_pair(vertex, primitive.positions.size()));
                 primitive.positions.push_back(vertex.position);
                 primitive.normals.push_back(vertex.normal);
-                primitive.tex_coords.push_back(vertex.tex_coord);
+                primitive.texcoords.push_back(vertex.texcoord);
                 primitive.colors.push_back(vertex.color);
             }
             primitive.indices.push_back(unique_vertices.at(vertex));

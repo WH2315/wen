@@ -1,18 +1,22 @@
 #include "function/render/render_framework/render_framework.hpp"
+#include "function/render/render_framework/pass/culling_pass.hpp"
+#include "function/render/render_framework/pass/visibility_pass.hpp"
+#include "function/render/render_framework/pass/mesh_pass.hpp"
 #include "engine/global_context.hpp"
 
 namespace wen {
 
 RenderFramework::RenderFramework() {
     auto& render_system = global_context->render_system;
-    auto render_pass = render_system->getInterface()->createRenderPass(false);
+    auto render_pass = render_system->getInterface()->createRenderPass();
     render_pass->addAttachment(Renderer::SWAPCHAIN_IMAGE_ATTACHMENT, Renderer::AttachmentType::eColor);
-    render_pass->addAttachment(Renderer::DEPTH_ATTACHMENT, Renderer::AttachmentType::eDepth);
     render_system->output_attachment_name = Renderer::SWAPCHAIN_IMAGE_ATTACHMENT;
 
     resource_ = std::make_unique<Resource>();
 
-    // subpasses_.push_back(std::make_unique<>());
+    subpasses_.push_back(std::make_unique<CullingPass>());
+    subpasses_.push_back(std::make_unique<VisibilityPass>());
+    subpasses_.push_back(std::make_unique<MeshPass>());
 
     for (auto& subpass : subpasses_) {
         subpass->addAttachment(*render_pass);
@@ -41,8 +45,6 @@ RenderFramework::~RenderFramework() {
     renderer_->waitIdle();
     renderer_.reset();
     subpasses_.clear();
-    auto manager = global_context->render_system->getAPIManager();
-
     resource_.reset();
 }
 

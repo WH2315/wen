@@ -82,12 +82,12 @@ public:
             *location -= bitangent;
             changed = true;
         }
-        if (global_context->input_system->isKeyPressed(GLFW_KEY_SPACE)) {
-            location->y += delta;
+        if (global_context->input_system->isKeyPressed(GLFW_KEY_Q)) {
+            location->y -= delta;
             changed = true;
         }
-        if (global_context->input_system->isKeyPressed(GLFW_KEY_LEFT_SHIFT)) {
-            location->y -= delta;
+        if (global_context->input_system->isKeyPressed(GLFW_KEY_E)) {
+            location->y += delta;
             changed = true;
         }
         if (changed) {
