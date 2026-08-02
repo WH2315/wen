@@ -244,9 +244,9 @@ void GraphicsRenderPipeline::compile(const GraphicsRenderPipelineOptions& option
         .setDepthWriteEnable(options.depth_write_enable)
         .setDepthCompareOp(options.depth_compare_op)
         .setDepthBoundsTestEnable(false)
-        .setStencilTestEnable(false)
-        .setFront({})
-        .setBack({});
+        .setStencilTestEnable(options.stencil_test_enable)
+        .setFront(options.stencil_front)
+        .setBack(options.stencil_back);
 
     // 8. color blending
     vk::PipelineColorBlendStateCreateInfo color_blend = {};

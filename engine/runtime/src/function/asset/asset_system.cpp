@@ -50,6 +50,10 @@ AssetSystem::~AssetSystem() {
 }
 
 MeshID AssetSystem::loadMesh(const std::string& filename, const std::vector<std::string>& lods) {
+    if (auto iter = loaded_meshes_.find(filename); iter != loaded_meshes_.end()) {
+        return iter->second;
+    }
+
     tinyobj::attrib_t attrib;
     std::vector<tinyobj::shape_t> shapes;
     std::vector<tinyobj::material_t> materials;
@@ -140,7 +144,9 @@ MeshID AssetSystem::loadMesh(const std::string& filename, const std::vector<std:
         }
     }
 
-    return mesh_pool_->uploadMeshData(data);
+    auto mesh_id = mesh_pool_->uploadMeshData(data);
+    loaded_meshes_.insert({filename, mesh_id});
+    return mesh_id;
 }
 
 }  // namespace wen

@@ -6,7 +6,7 @@ GlobalContext* global_context = nullptr;
 
 void GlobalContext::startup() {
     log_system.initialize(LogLevel::trace, LogLevel::trace);
-    window_system.initialize(WindowInfo("wen 16 : 9", 1600, 900));
+    window_system.initialize(WindowInfo("wen", 1920, 1080));
     event_system.initialize();
     input_system.initialize();
     timer_system.initialize();

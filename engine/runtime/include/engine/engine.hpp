@@ -17,14 +17,23 @@ public:
 
     void runEngine();
 
+    // Phase API: runEngine() is implemented with these, and a host (e.g. the
+    // editor) may drive its own loop instead of calling runEngine():
+    //     while (engine->isAlive()) {
+    //         engine->pollEvents();
+    //         engine->tickLogic();  // host decides whether to run logic
+    //         engine->tickRender();
+    //     }
+    //     engine->waitFixedTickThread();
+    bool isAlive() const;
+    void pollEvents();
+    void tickLogic();
+    void tickRender();
+    void waitFixedTickThread();
+
     void prepareTimer();
     void startTimer();
     void stopTimer();
-
-protected:
-    void tickOneFrame();
-    void tickLogic();
-    void tickRender();
 
 private:
     float delta_time_;

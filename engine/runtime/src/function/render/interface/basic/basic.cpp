@@ -376,6 +376,8 @@ void DescriptorPool::clearPools() {
         ready_pools_.push_back(pool);
     }
     full_pools_.clear();
+    // Resetting pools implicitly frees every set allocated from them.
+    set_owner_pools_.clear();
 }
 
 std::vector<vk::DescriptorSet> DescriptorPool::allocate(vk::DescriptorSetLayout layout) {
@@ -395,13 +397,30 @@ std::vector<vk::DescriptorSet> DescriptorPool::allocate(vk::DescriptorSetLayout 
         descriptor_sets = manager->device->device.allocateDescriptorSets(allocate_info);
     }
     ready_pools_.push_back(pool_to_use);
+    for (auto set : descriptor_sets) {
+        set_owner_pools_[set] = pool_to_use;
+    }
     return descriptor_sets;
 }
 
 void DescriptorPool::free(const std::vector<vk::DescriptorSet>& descriptor_sets) {
-    auto pool_to_use = getPool();
-    manager->device->device.freeDescriptorSets(pool_to_use, descriptor_sets);
-    ready_pools_.push_back(pool_to_use);
+    // Group by owning pool: freeing a set against a pool it was not allocated
+    // from is invalid (VUID-vkFreeDescriptorSets-pDescriptorSets-parent).
+    std::map<vk::DescriptorPool, std::vector<vk::DescriptorSet>> sets_by_pool;
+    for (auto set : descriptor_sets) {
+        if (auto iter = set_owner_pools_.find(set); iter != set_owner_pools_.end()) {
+            sets_by_pool[iter->second].push_back(set);
+            set_owner_pools_.erase(iter);
+        }
+    }
+    for (auto& [pool, sets] : sets_by_pool) {
+        manager->device->device.freeDescriptorSets(pool, sets);
+        // Freeing makes room again; move the pool back to ready if it was full.
+        if (auto iter = std::find(full_pools_.begin(), full_pools_.end(), pool); iter != full_pools_.end()) {
+            full_pools_.erase(iter);
+            ready_pools_.push_back(pool);
+        }
+    }
 }
 
 vk::DescriptorPool DescriptorPool::createPool(uint32_t set_count, std::span<PoolSizeRatio> pool_ratios) {

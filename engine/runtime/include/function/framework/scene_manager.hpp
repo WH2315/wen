@@ -18,6 +18,13 @@ public:
     GameObject* createGameObject(const std::string& name);
     void removeGameObject(GameObject* game_object);
 
+    const std::string& getName() const { return name_; }
+    const std::list<GameObject*>& getGameObjects() const { return game_objects_; }
+    GameObject* getGameObject(GameObjectUUID uuid) const {
+        auto iter = game_object_map_.find(uuid);
+        return iter == game_object_map_.end() ? nullptr : iter->second;
+    }
+
 private:
     std::string name_;
     std::map<uint64_t, GameObject*> game_object_map_;
@@ -32,6 +39,8 @@ class SceneManager final {
 public:
     Scene* createScene(const std::string& name);
     void loadScene(const std::string& name);
+
+    Scene* getActiveScene() const { return active_scene_; }
 
     void start();
     void fixedTick();

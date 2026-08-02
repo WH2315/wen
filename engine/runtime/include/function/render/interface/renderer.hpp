@@ -50,6 +50,7 @@ public:
 
 public:
     uint32_t getCurrentFrame() { return current_frame_; }
+    uint32_t getCurrentImageIndex() const { return index_; }
     vk::CommandBuffer getCurrentBuffer() { return current_buffer_; }
     void updateFramebuffers();
     void updateSwapchain();

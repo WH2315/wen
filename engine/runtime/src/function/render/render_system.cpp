@@ -22,6 +22,11 @@ void RenderSystem::render() {
     render_framework_->render();
 }
 
+void RenderSystem::enableEditor(const std::function<void()>& ui_callback) {
+    render_framework_.reset();
+    render_framework_ = std::make_unique<RenderFramework>(true, ui_callback);
+}
+
 void RenderSystem::destroyRenderer() {
     render_framework_.reset();
     render_data_.reset();

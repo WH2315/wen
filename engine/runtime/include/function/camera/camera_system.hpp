@@ -29,8 +29,15 @@ public:
     void turnOnFixedClip();
     void turnOffFixedClip();
 
+    void setMainCamera(CameraID id) { reportCameraAsPrimaryViewport(id); }
+    CameraID getMainCamera() const { return current_primary_viewport_; }
+    bool hasMainCamera() const { return current_primary_viewport_ != 0; }
+    bool hasActiveViewportCamera() const { return editor_camera_active_ || hasMainCamera(); }
+
     void activeEditorCamera(CameraID id);
     void deactiveEditorCamera();
+
+    void uploadFrameData(uint32_t in_flight_index);
 
     auto queryCameraData(CameraID id) const { return &cameras_.at(id); }
 
@@ -42,8 +49,12 @@ private:
     std::map<CameraID, CameraData> cameras_;
     CameraID current_camera_id_;
     CameraID current_primary_viewport_;
-    std::shared_ptr<Renderer::UniformBuffer> viewport_camera_;
-    std::shared_ptr<Renderer::UniformBuffer> clip_camera_;
+
+    CameraData viewport_data_;
+    CameraData clip_data_;
+    std::shared_ptr<Renderer::InFlightBuffer> viewport_camera_;
+    std::shared_ptr<Renderer::InFlightBuffer> clip_camera_;
+
     bool fixed_clip_;
     bool editor_camera_active_;
 };

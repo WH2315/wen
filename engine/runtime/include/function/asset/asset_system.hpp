@@ -12,6 +12,7 @@ class AssetSystem final {
 
 public:
     void setRootDir(const std::string& path) { path_ = path; }
+    auto getRootDir() const { return path_; }
 
     MeshID loadMesh(const std::string& filename, const std::vector<std::string>& lods = {});
 
@@ -22,6 +23,7 @@ public:
 private:
     std::string path_;
     std::unique_ptr<MeshPool> mesh_pool_;
+    std::map<std::string, MeshID> loaded_meshes_;
 };
 
 }  // namespace wen

@@ -20,5 +20,7 @@ mat3 compute_model(vec3 scale, vec3 rotation) {
         0, 0, 1
     );
     mat3 scale_m = mat3(scale.x, 0, 0, 0, scale.y, 0, 0, 0, scale.z);
-    return scale_m * rotate_z * rotate_y * rotate_x;
+    // Standard TRS: scale in local space first, then rotate (X, then Y, then Z).
+    // Matches ImGuizmo's decomposition so the gizmo and the render agree.
+    return rotate_z * rotate_y * rotate_x * scale_m;
 }

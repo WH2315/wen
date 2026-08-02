@@ -8,9 +8,22 @@ CameraSystem::CameraSystem() {
     current_camera_id_ = 0;
     current_primary_viewport_ = 0;
 
-    auto interface = global_context->render_system->getInterface();
-    viewport_camera_ = interface->createUniformBuffer(sizeof(CameraData));
-    clip_camera_ = interface->createUniformBuffer(sizeof(CameraData));
+    viewport_data_ = CameraData{
+        .view = glm::mat4(1),
+        .project = glm::ortho<float>(0, 1, 0, 1, 0, 1)
+    };
+    clip_data_ = viewport_data_;
+
+    auto make_camera_buffer = []() {
+        return std::make_shared<Renderer::InFlightBuffer>(
+            sizeof(CameraData),
+            vk::BufferUsageFlagBits::eUniformBuffer,
+            VMA_MEMORY_USAGE_AUTO,
+            VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT
+        );
+    };
+    viewport_camera_ = make_camera_buffer();
+    clip_camera_ = make_camera_buffer();
 
     fixed_clip_ = false;
     editor_camera_active_ = false;
@@ -39,6 +52,8 @@ CameraID CameraSystem::addCamera(bool is_editor_camera) {
 void CameraSystem::removeCamera(CameraID id) {
     cameras_.erase(id);
     if (current_primary_viewport_ == id) {
+        // No main camera anymore; renderers check hasActiveViewportCamera()
+        // and skip scene drawing instead of reusing stale matrices.
         current_primary_viewport_ = 0;
     }
 }
@@ -50,9 +65,9 @@ void CameraSystem::reportCameraViewMatrix(CameraID id, const glm::mat4& view, bo
         return;
     }
     if (id == current_primary_viewport_ || is_editor_camera) {
-        static_cast<CameraData*>(viewport_camera_->getData())->view = view;
+        viewport_data_.view = view;
         if (!fixed_clip_) {
-            static_cast<CameraData*>(clip_camera_->getData())->view = view;
+            clip_data_.view = view;
         }
     }
 }
@@ -66,13 +81,13 @@ void CameraSystem::reportCameraProjectMatrix(CameraID id, const glm::mat4& proje
         return;
     }
     if (id == current_primary_viewport_ || is_editor_camera) {
-        static_cast<CameraData*>(viewport_camera_->getData())->project = project;
-        static_cast<CameraData*>(viewport_camera_->getData())->near = near;
-        static_cast<CameraData*>(viewport_camera_->getData())->far = far;
+        viewport_data_.project = project;
+        viewport_data_.near = near;
+        viewport_data_.far = far;
         if (!fixed_clip_) {
-            static_cast<CameraData*>(clip_camera_->getData())->project = project;
-            static_cast<CameraData*>(clip_camera_->getData())->near = near;
-            static_cast<CameraData*>(clip_camera_->getData())->far = far;
+            clip_data_.project = project;
+            clip_data_.near = near;
+            clip_data_.far = far;
         }
     }
 }
@@ -82,9 +97,9 @@ void CameraSystem::reportCameraAsPrimaryViewport(CameraID id) {
     if (editor_camera_active_) {
         return;
     }
-    memcpy(viewport_camera_->getData(), &cameras_.at(id), sizeof(CameraData));
+    viewport_data_ = cameras_.at(id);
     if (!fixed_clip_) {
-        memcpy(clip_camera_->getData(), &cameras_.at(id), sizeof(CameraData));
+        clip_data_ = viewport_data_;
     }
 }
 
@@ -94,20 +109,27 @@ void CameraSystem::turnOnFixedClip() {
 
 void CameraSystem::turnOffFixedClip() {
     fixed_clip_ = false;
-    memcpy(clip_camera_->getData(), viewport_camera_->getData(), sizeof(CameraData));
+    clip_data_ = viewport_data_;
 }
 
 void CameraSystem::activeEditorCamera(CameraID id) {
     editor_camera_active_ = true;
-    memcpy(viewport_camera_->getData(), &cameras_.at(id), sizeof(CameraData));
+    viewport_data_ = cameras_.at(id);
     if (!fixed_clip_) {
-        memcpy(clip_camera_->getData(), &cameras_.at(id), sizeof(CameraData));
+        clip_data_ = viewport_data_;
     }
 }
 
 void CameraSystem::deactiveEditorCamera() {
     editor_camera_active_ = false;
-    reportCameraAsPrimaryViewport(current_primary_viewport_);
+    if (hasMainCamera()) {
+        reportCameraAsPrimaryViewport(current_primary_viewport_);
+    }
+}
+
+void CameraSystem::uploadFrameData(uint32_t in_flight_index) {
+    memcpy(viewport_camera_->map(in_flight_index), &viewport_data_, sizeof(CameraData));
+    memcpy(clip_camera_->map(in_flight_index), &clip_data_, sizeof(CameraData));
 }
 
 }  // namespace wen

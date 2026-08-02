@@ -13,6 +13,15 @@ public:
     void executePreRenderPass(std::shared_ptr<Renderer::Renderer> renderer, Resource& resource) override;
 
 private:
+    // Descriptor array sizes are baked into the pipeline layout, so allocate
+    // for the largest window we ever expect (2^16 px) and pad unused slots.
+    static constexpr uint32_t kMaxDepthMipLevels = 16;
+
+    // (Re)creates everything that depends on the swapchain size: transitions
+    // the depth attachment, rebuilds the per-in-flight HZB pyramids, rebinds
+    // their descriptors and updates the depth_texture_size push constant.
+    // Called at creation and from the resource-recreate (resize) callback.
+    void recreateDepthResources(Renderer::Renderer* renderer, Resource& resource);
     std::shared_ptr<Renderer::DescriptorSet> depth_descriptor_set_;
     std::shared_ptr<Renderer::PushConstants> depth_constants_;
 

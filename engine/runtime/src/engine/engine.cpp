@@ -22,10 +22,23 @@ void Engine::shutdownEngine() {
 
 void Engine::runEngine() {
     startTimer();
-    while (!global_context->window_system->shouldClose()) {
-        global_context->window_system->pollEvents();
-        tickOneFrame();
+    while (isAlive()) {
+        pollEvents();
+        tickLogic();
+        tickRender();
     }
+    waitFixedTickThread();
+}
+
+bool Engine::isAlive() const {
+    return !global_context->window_system->shouldClose();
+}
+
+void Engine::pollEvents() {
+    global_context->window_system->pollEvents();
+}
+
+void Engine::waitFixedTickThread() {
     fixed_tick_thread_->join();
     fixed_tick_thread_.reset();
 }
@@ -59,11 +72,6 @@ void Engine::startTimer() {
 void Engine::stopTimer() {
     main_timer_->stop();
     fixed_timer_->stop();
-}
-
-void Engine::tickOneFrame() {
-    tickLogic();
-    tickRender();
 }
 
 void Engine::tickLogic() {

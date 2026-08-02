@@ -13,6 +13,9 @@ public:
 
     void setLevel(const LogLevel& level) const;
 
+    // Attach an extra sink (e.g. the editor console) to this logger.
+    void addSink(spdlog::sink_ptr sink) { logger_->sinks().push_back(std::move(sink)); }
+
     template <typename... Args>
     void log(const LogLevel level, const std::string_view fmt, Args&&... args) {
         auto message =

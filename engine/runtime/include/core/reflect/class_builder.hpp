@@ -1,7 +1,7 @@
 #pragma once
 
-#include "core/reflect/traits/member.hpp"
-#include "core/reflect/traits/function.hpp"
+#include "core/reflect/traits/member_.hpp"
+#include "core/reflect/traits/function_.hpp"
 
 namespace wen {
 
@@ -18,6 +18,15 @@ public:
             WEN_CORE_ERROR("Member {} not in class {}", name, class_name_)
         }
         return members_.at(name);
+    }
+
+    std::vector<std::string> getMemberNames() const {
+        std::vector<std::string> names;
+        names.reserve(members_.size());
+        for (const auto& [name, member] : members_) {
+            names.push_back(name);
+        }
+        return names;
     }
 
     const Function& getFunction(const std::string& name) const {

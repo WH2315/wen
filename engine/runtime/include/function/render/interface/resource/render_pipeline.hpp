@@ -139,6 +139,9 @@ struct GraphicsRenderPipelineOptions {
     vk::Bool32 depth_test_enable = true;
     vk::Bool32 depth_write_enable = true;
     vk::CompareOp depth_compare_op = vk::CompareOp::eLess;
+    vk::Bool32 stencil_test_enable = false;
+    vk::StencilOpState stencil_front = {};
+    vk::StencilOpState stencil_back = {};
     std::vector<vk::DynamicState> dynamic_states = {};
 };
 

@@ -54,11 +54,19 @@ void VisibilityPass::createRenderResource(std::shared_ptr<Renderer::Renderer> re
         .cull_mode = vk::CullModeFlagBits::eBack,
         .front_face = vk::FrontFace::eCounterClockwise,
         .depth_test_enable = true,
+        // Set per frame so the pipeline survives swapchain resizes.
+        .dynamic_states = {vk::DynamicState::eViewport, vk::DynamicState::eScissor},
     });
 }
 
 void VisibilityPass::executeRenderPass(std::shared_ptr<Renderer::Renderer> renderer, Resource& resource) {
     auto cmdbuf = renderer->getCurrentBuffer();
+
+    auto config = global_context->render_system->getRendererConfig();
+    auto w = static_cast<float>(config.swapchain_image_width);
+    auto h = static_cast<float>(config.swapchain_image_height);
+    renderer->setViewport(0.0f, h, w, -h);
+    renderer->setScissor(0, 0, config.swapchain_image_width, config.swapchain_image_height);
 
     cmdbuf.bindVertexBuffers(0, {
         global_context->asset_system->getMeshPool()->position_buffer->getBuffer(),

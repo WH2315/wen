@@ -39,8 +39,8 @@ public:
 
     const vk::DescriptorSetLayoutBinding& getBinding(uint32_t binding);
 
-    void bindUniforms(uint32_t binding, const std::vector<std::shared_ptr<UniformBuffer>>& uniform_buffers);
-    void bindUniform(uint32_t binding, std::shared_ptr<UniformBuffer> uniform_buffer);
+    void bindUniforms(uint32_t binding, const std::vector<std::shared_ptr<SpecificBuffer>>& uniform_buffers);
+    void bindUniform(uint32_t binding, std::shared_ptr<SpecificBuffer> uniform_buffer);
     void bindTextures(uint32_t binding, const std::vector<std::pair<std::shared_ptr<SpecificTexture>, std::shared_ptr<Sampler>>>& textures_samplers);
     void bindTexture(uint32_t binding, std::shared_ptr<SpecificTexture> texture, std::shared_ptr<Sampler> sampler);
     void bindInputAttachments(uint32_t binding, const std::shared_ptr<Renderer>& renderer, const std::vector<std::pair<std::string, std::shared_ptr<Sampler>>>& names_samplers);

@@ -88,6 +88,8 @@ private:
     std::vector<PoolSizeRatio> ratios_;
     std::vector<vk::DescriptorPool> full_pools_;
     std::vector<vk::DescriptorPool> ready_pools_;
+    // Sets must be freed against the pool they were allocated from.
+    std::map<VkDescriptorSet, vk::DescriptorPool> set_owner_pools_;
     uint32_t sets_per_pool_;
 };
 

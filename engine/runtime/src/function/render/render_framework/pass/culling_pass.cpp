@@ -17,15 +17,11 @@ void CullingPass::createRenderResource(std::shared_ptr<Renderer::Renderer> rende
     auto interface = global_context->render_system->getInterface();
     auto max_primitive_count = global_context->asset_system->getMaxPrimitiveCount();
     auto max_mesh_instance_count = global_context->render_system->getMaxMeshInstanceCount();
-    auto width = global_context->render_system->getRendererConfig().swapchain_image_width;
-    auto height = global_context->render_system->getRendererConfig().swapchain_image_height;
-    resource.depth_mip_level_count = glm::floor(glm::log2<float>(glm::max(width, height))) + 1;
-
     depth_descriptor_set_ = interface->createDescriptorSet();
     depth_descriptor_set_->addDescriptors({
         {0, vk::DescriptorType::eCombinedImageSampler, 1, Renderer::ShaderStage::eCompute},
-        {1, vk::DescriptorType::eStorageImage, resource.depth_mip_level_count, Renderer::ShaderStage::eCompute},
-        {2, vk::DescriptorType::eStorageImage, resource.depth_mip_level_count, Renderer::ShaderStage::eCompute}
+        {1, vk::DescriptorType::eStorageImage, kMaxDepthMipLevels, Renderer::ShaderStage::eCompute},
+        {2, vk::DescriptorType::eStorageImage, kMaxDepthMipLevels, Renderer::ShaderStage::eCompute}
     });
     depth_descriptor_set_->build();
 
@@ -37,24 +33,6 @@ void CullingPass::createRenderResource(std::shared_ptr<Renderer::Renderer> rende
         }
     );
 
-    vk::ImageMemoryBarrier image_barrier{};
-    image_barrier.setImage(renderer->framebuffer_set->attachments.at(renderer->render_pass->getAttachmentIndex("depth", true))->image->image)
-        .setSrcAccessMask(vk::AccessFlagBits::eNone)
-        .setDstAccessMask(vk::AccessFlagBits::eDepthStencilAttachmentWrite)
-        .setOldLayout(vk::ImageLayout::eUndefined)
-        .setNewLayout(vk::ImageLayout::eDepthStencilAttachmentOptimal)
-        .setSubresourceRange({vk::ImageAspectFlagBits::eDepth, 0, 1, 0, 1});
-    auto cmdbuf = manager->command_pool->allocateSingleUse();
-    cmdbuf.pipelineBarrier(
-        vk::PipelineStageFlagBits::eTopOfPipe,
-        vk::PipelineStageFlagBits::eEarlyFragmentTests,
-        {},
-        {},
-        {},
-        image_barrier
-    );
-    manager->command_pool->freeSingleUse(cmdbuf);
-
     vk::SamplerReductionModeCreateInfo reduction_mode_ci{};
     reduction_mode_ci.setReductionMode(vk::SamplerReductionModeEXT::eMax);
     vk::SamplerCreateInfo sampler_ci{};
@@ -65,79 +43,15 @@ void CullingPass::createRenderResource(std::shared_ptr<Renderer::Renderer> rende
         .setAddressModeV(vk::SamplerAddressMode::eClampToEdge)
         .setAddressModeW(vk::SamplerAddressMode::eClampToEdge)
         .setMinLod(0)
-        .setMaxLod(resource.depth_mip_level_count - 1)
+        .setMaxLod(kMaxDepthMipLevels - 1)
         .setPNext(&reduction_mode_ci);
     resource.depth_sampler = interface->createSampler();
     manager->device->device.destroySampler(resource.depth_sampler->sampler);
     resource.depth_sampler->sampler = manager->device->device.createSampler(sampler_ci);
 
-    renderer->registerResourceRecreateCallback([&, ptr = renderer.get()]() {
-        vk::ImageMemoryBarrier image_barrier{};
-        image_barrier.setImage(ptr->framebuffer_set->attachments.at(ptr->render_pass->getAttachmentIndex("depth", true))->image->image)
-            .setSrcAccessMask(vk::AccessFlagBits::eNone)
-            .setDstAccessMask(vk::AccessFlagBits::eDepthStencilAttachmentWrite)
-            .setOldLayout(vk::ImageLayout::eUndefined)
-            .setNewLayout(vk::ImageLayout::eDepthStencilAttachmentOptimal)
-            .setSubresourceRange({vk::ImageAspectFlagBits::eDepth, 0, 1, 0, 1});
-        auto cmdbuf = manager->command_pool->allocateSingleUse();
-        cmdbuf.pipelineBarrier(
-            vk::PipelineStageFlagBits::eTopOfPipe,
-            vk::PipelineStageFlagBits::eEarlyFragmentTests,
-            {},
-            {},
-            {},
-            image_barrier
-        );
-        manager->command_pool->freeSingleUse(cmdbuf);
-
-        for (size_t in_flight_index = 0; in_flight_index < global_context->render_system->getRendererConfig().max_frames_in_flight; in_flight_index++) {
-            vk::DescriptorImageInfo depth_image_info{};
-            depth_image_info.setImageLayout(vk::ImageLayout::eShaderReadOnlyOptimal)
-                .setImageView(ptr->framebuffer_set->attachments.at(ptr->render_pass->getAttachmentIndex("depth", true))->image_view)
-                .setSampler(resource.depth_sampler->sampler);
-            vk::WriteDescriptorSet write{};
-            write.setDstSet(depth_descriptor_set_->getDescriptorSets()[in_flight_index])
-                .setDstBinding(0)
-                .setDstArrayElement(0)
-                .setDescriptorType(vk::DescriptorType::eCombinedImageSampler)
-                .setImageInfo(depth_image_info);
-            manager->device->device.updateDescriptorSets({write}, {});
-        }
+    renderer->registerResourceRecreateCallback([this, &resource, ptr = renderer.get()]() {
+        recreateDepthResources(ptr, resource);
     });
-
-    for (size_t in_flight_index = 0; in_flight_index < global_context->render_system->getRendererConfig().max_frames_in_flight; in_flight_index++) {
-        auto depth_image = std::make_shared<Renderer::DepthImage>(
-            width,
-            height,
-            vk::Format::eR32Sfloat,
-            vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eSampled,
-            resource.depth_mip_level_count
-        );
-        resource.depth_images.push_back(depth_image);
-
-        vk::DescriptorImageInfo image_info{};
-        image_info.setImageLayout(vk::ImageLayout::eShaderReadOnlyOptimal)
-            .setImageView(renderer->framebuffer_set->attachments.at(renderer->render_pass->getAttachmentIndex("depth", true))->image_view)
-            .setSampler(resource.depth_sampler->sampler);
-        vk::WriteDescriptorSet write{};
-        write.setDstSet(depth_descriptor_set_->getDescriptorSets()[in_flight_index])
-            .setDstBinding(0)
-            .setDstArrayElement(0)
-            .setDescriptorType(vk::DescriptorType::eCombinedImageSampler)
-            .setImageInfo(image_info);
-        manager->device->device.updateDescriptorSets({write}, {});
-        std::vector<vk::DescriptorImageInfo> image_infos(resource.depth_mip_level_count);
-        for (uint32_t i = 0; i < resource.depth_images.back()->getMipLevels(); i++) {
-            image_infos[i].setImageLayout(resource.depth_images.back()->getImageLayout())
-                .setImageView(resource.depth_images.back()->getMipmapViews()[i]);
-        }
-        write.setDstBinding(1)
-            .setDescriptorType(vk::DescriptorType::eStorageImage)
-            .setImageInfo(image_infos);
-        manager->device->device.updateDescriptorSets({write}, {});
-        write.setDstBinding(2);
-        manager->device->device.updateDescriptorSets({write}, {});
-    }
 
     auto a = [&](const char* shader_name, auto& program, auto& pipeline) {
         program = interface->createComputeShaderProgram();
@@ -169,6 +83,14 @@ void CullingPass::createRenderResource(std::shared_ptr<Renderer::Renderer> rende
     resource.indirect_commands_buffer = createBuffer(sizeof(vk::DrawIndexedIndirectCommand) * max_primitive_count);
     resource.available_indirect_commands_buffer = createBuffer(resource.indirect_commands_buffer->getSize(), vk::BufferUsageFlagBits::eIndirectBuffer);
     resource.instance_datas_buffer = createBuffer(sizeof(glm::vec4) * 3 * max_mesh_instance_count, vk::BufferUsageFlagBits::eVertexBuffer);
+    // GPU-only: filled by compact_instance.comp, consumed by the outlining
+    // pass as vertex (instance data) + indirect draw command.
+    resource.outlining_buffer = std::make_shared<Renderer::InFlightBuffer>(
+        sizeof(glm::vec4) * 3 + sizeof(vk::DrawIndexedIndirectCommand),
+        vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eIndirectBuffer,
+        VMA_MEMORY_USAGE_AUTO,
+        VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT
+    );
     resource.selected_mesh_instance_index = uint32_t(-1);
 
     for (size_t in_flight_index = 0; in_flight_index < global_context->render_system->getRendererConfig().max_frames_in_flight; in_flight_index++) {
@@ -199,6 +121,7 @@ void CullingPass::createRenderResource(std::shared_ptr<Renderer::Renderer> rende
         {4, vk::DescriptorType::eStorageBuffer, Renderer::ShaderStage::eCompute},
         {5, vk::DescriptorType::eStorageBuffer, Renderer::ShaderStage::eCompute},
         {6, vk::DescriptorType::eCombinedImageSampler, Renderer::ShaderStage::eCompute},
+        {7, vk::DescriptorType::eStorageBuffer, Renderer::ShaderStage::eCompute},
     });
     descriptor_set_->build();
     descriptor_set_->bindStorageBuffer(0, resource.counts_buffer);
@@ -207,7 +130,7 @@ void CullingPass::createRenderResource(std::shared_ptr<Renderer::Renderer> rende
     descriptor_set_->bindStorageBuffer(3, resource.indirect_commands_buffer);
     descriptor_set_->bindStorageBuffer(4, resource.available_indirect_commands_buffer);
     descriptor_set_->bindStorageBuffer(5, resource.instance_datas_buffer);
-    descriptor_set_->bindDepthImages(6, resource.depth_images, resource.depth_sampler);
+    descriptor_set_->bindStorageBuffer(7, resource.outlining_buffer);
 
     constants_ = interface->createPushConstants(
         Renderer::ShaderStage::eCompute,
@@ -218,8 +141,9 @@ void CullingPass::createRenderResource(std::shared_ptr<Renderer::Renderer> rende
             {"selected_mesh_instance_index", Renderer::ConstantType::eUint32}
         }
     );
-    glm::uvec2 size(width, height);
-    constants_->pushConstant("depth_texture_size", &size);
+    // Depth attachment transition, HZB pyramid creation, descriptor binding
+    // and the depth_texture_size push constant - shared with the resize path.
+    recreateDepthResources(renderer.get(), resource);
 
     auto b = [&](const char* shader_name, auto& program, auto& pipeline) {
         program = interface->createComputeShaderProgram();
@@ -236,7 +160,96 @@ void CullingPass::createRenderResource(std::shared_ptr<Renderer::Renderer> rende
     b("generate_available_indirect_command.comp", generate_available_indirect_command_shader_program_, generate_available_indirect_command_render_pipeline_);
 }
 
+void CullingPass::recreateDepthResources(Renderer::Renderer* renderer, Resource& resource) {
+    auto manager = global_context->render_system->getAPIManager();
+    auto config = global_context->render_system->getRendererConfig();
+    auto width = config.swapchain_image_width;
+    auto height = config.swapchain_image_height;
+    resource.depth_mip_level_count = std::min<uint32_t>(
+        static_cast<uint32_t>(glm::floor(glm::log2<float>(glm::max(width, height)))) + 1,
+        kMaxDepthMipLevels);
+
+    // The freshly (re)created depth attachment starts eUndefined; move it to
+    // the layout the depth pre-pass expects.
+    vk::ImageMemoryBarrier image_barrier{};
+    image_barrier.setImage(renderer->framebuffer_set->attachments.at(renderer->render_pass->getAttachmentIndex("depth", true))->image->image)
+        .setSrcAccessMask(vk::AccessFlagBits::eNone)
+        .setDstAccessMask(vk::AccessFlagBits::eDepthStencilAttachmentWrite)
+        .setOldLayout(vk::ImageLayout::eUndefined)
+        .setNewLayout(vk::ImageLayout::eDepthStencilAttachmentOptimal)
+        .setSubresourceRange({vk::ImageAspectFlagBits::eDepth, 0, 1, 0, 1});
+    auto cmdbuf = manager->command_pool->allocateSingleUse();
+    cmdbuf.pipelineBarrier(
+        vk::PipelineStageFlagBits::eTopOfPipe,
+        vk::PipelineStageFlagBits::eEarlyFragmentTests,
+        {},
+        {},
+        {},
+        image_barrier
+    );
+    manager->command_pool->freeSingleUse(cmdbuf);
+
+    // Rebuild the per-in-flight HZB pyramids at the current size. Safe on
+    // resize: recreateSwapchain() waited for the device to go idle.
+    resource.depth_images.clear();
+    for (size_t in_flight_index = 0; in_flight_index < config.max_frames_in_flight; in_flight_index++) {
+        resource.depth_images.push_back(std::make_shared<Renderer::DepthImage>(
+            width,
+            height,
+            vk::Format::eR32Sfloat,
+            vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eSampled,
+            resource.depth_mip_level_count
+        ));
+    }
+
+    for (size_t in_flight_index = 0; in_flight_index < config.max_frames_in_flight; in_flight_index++) {
+        auto& depth_image = resource.depth_images[in_flight_index];
+
+        vk::DescriptorImageInfo depth_attachment_info{};
+        depth_attachment_info.setImageLayout(vk::ImageLayout::eShaderReadOnlyOptimal)
+            .setImageView(renderer->framebuffer_set->attachments.at(renderer->render_pass->getAttachmentIndex("depth", true))->image_view)
+            .setSampler(resource.depth_sampler->sampler);
+        vk::WriteDescriptorSet write{};
+        write.setDstSet(depth_descriptor_set_->getDescriptorSets()[in_flight_index])
+            .setDstBinding(0)
+            .setDstArrayElement(0)
+            .setDescriptorType(vk::DescriptorType::eCombinedImageSampler)
+            .setImageInfo(depth_attachment_info);
+        manager->device->device.updateDescriptorSets({write}, {});
+
+        // Mip storage views, padded with the last view up to the fixed array
+        // size baked into the layout (padded slots are never dispatched).
+        std::vector<vk::DescriptorImageInfo> image_infos(kMaxDepthMipLevels);
+        for (uint32_t i = 0; i < kMaxDepthMipLevels; i++) {
+            auto mip = std::min(i, depth_image->getMipLevels() - 1);
+            image_infos[i].setImageLayout(depth_image->getImageLayout())
+                .setImageView(depth_image->getMipmapViews()[mip]);
+        }
+        write.setDstBinding(1)
+            .setDescriptorType(vk::DescriptorType::eStorageImage)
+            .setImageInfo(image_infos);
+        manager->device->device.updateDescriptorSets({write}, {});
+        write.setDstBinding(2);
+        manager->device->device.updateDescriptorSets({write}, {});
+    }
+
+    descriptor_set_->bindDepthImages(6, resource.depth_images, resource.depth_sampler);
+
+    glm::uvec2 size(width, height);
+    constants_->pushConstant("depth_texture_size", &size);
+}
+
 void CullingPass::executePreRenderPass(std::shared_ptr<Renderer::Renderer> renderer, Resource& resource) {
+    // No camera (main camera removed, editor camera inactive): zero the draw
+    // counts so the indirect draws emit nothing, instead of rendering with
+    // stale matrices. The render pass still runs and clears the attachments.
+    if (!global_context->camera_system->hasActiveViewportCamera()) {
+        auto count_ptr = static_cast<uint32_t*>(resource.counts_buffer->map(renderer->getCurrentFrame()));
+        count_ptr[0] = 0;
+        count_ptr[1] = 0;
+        return;
+    }
+
     constants_->pushConstant("selected_mesh_instance_index", &resource.selected_mesh_instance_index);
 
     auto cmdbuf = renderer->getCurrentBuffer();
@@ -322,6 +335,8 @@ void CullingPass::executePreRenderPass(std::shared_ptr<Renderer::Renderer> rende
     constants_->pushConstant("mesh_instance_count", &mesh_instance_count);
     constants_->pushConstant("primitive_count", &primitive_count);
     auto count_ptr = static_cast<uint32_t*>(resource.counts_buffer->map(renderer->getCurrentFrame()));
+    resource.visibility_count = count_ptr[0];
+    resource.draw_call_count = count_ptr[1];
     count_ptr[0] = 0;
     count_ptr[1] = 0;
 
@@ -370,6 +385,17 @@ void CullingPass::executePreRenderPass(std::shared_ptr<Renderer::Renderer> rende
     buffer_barrier.setBuffer(resource.indirect_commands_buffer->getBuffer(renderer->getCurrentFrame()))
         .setSize(resource.indirect_commands_buffer->getSize())
         .setDstAccessMask(vk::AccessFlagBits::eShaderRead | vk::AccessFlagBits::eShaderWrite);
+    renderer->pipelineBarrier(
+        vk::PipelineStageFlagBits::eComputeShader,
+        vk::PipelineStageFlagBits::eComputeShader,
+        {buffer_barrier},
+        {}
+    );
+
+    // reset 清零 outlining 命令后 compact 可能重写它，需要 WAW 屏障
+    buffer_barrier.setBuffer(resource.outlining_buffer->getBuffer(renderer->getCurrentFrame()))
+        .setSize(resource.outlining_buffer->getSize())
+        .setDstAccessMask(vk::AccessFlagBits::eShaderWrite);
     renderer->pipelineBarrier(
         vk::PipelineStageFlagBits::eComputeShader,
         vk::PipelineStageFlagBits::eComputeShader,

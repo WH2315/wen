@@ -40,7 +40,7 @@ const vk::DescriptorSetLayoutBinding& DescriptorSet::getBinding(uint32_t binding
     return *bindings_.end();
 }
 
-void DescriptorSet::bindUniforms(uint32_t binding, const std::vector<std::shared_ptr<UniformBuffer>>& uniform_buffers) {
+void DescriptorSet::bindUniforms(uint32_t binding, const std::vector<std::shared_ptr<SpecificBuffer>>& uniform_buffers) {
     auto layout_binding = getBinding(binding);
     if (layout_binding.descriptorType != vk::DescriptorType::eUniformBuffer) {
         WEN_CORE_ERROR("binding {} is not uniform buffer!", binding)
@@ -53,7 +53,9 @@ void DescriptorSet::bindUniforms(uint32_t binding, const std::vector<std::shared
     for (uint32_t i = 0; i < renderer_config.max_frames_in_flight; i++) {
         std::vector<vk::DescriptorBufferInfo> buffers(layout_binding.descriptorCount);
         for (uint32_t j = 0; j < layout_binding.descriptorCount; j++) {
-            buffers[j].setBuffer(uniform_buffers[j]->getBuffer())
+            // getBuffer(i): per-in-flight buffers (InFlightBuffer) get frame i's
+            // buffer in set i; single buffers ignore the index.
+            buffers[j].setBuffer(uniform_buffers[j]->getBuffer(i))
                 .setOffset(0)
                 .setRange(uniform_buffers[j]->getSize());
         }
@@ -67,7 +69,7 @@ void DescriptorSet::bindUniforms(uint32_t binding, const std::vector<std::shared
     }
 }
 
-void DescriptorSet::bindUniform(uint32_t binding, std::shared_ptr<UniformBuffer> uniform_buffer) {
+void DescriptorSet::bindUniform(uint32_t binding, std::shared_ptr<SpecificBuffer> uniform_buffer) {
     bindUniforms(binding, {uniform_buffer});
 }
 

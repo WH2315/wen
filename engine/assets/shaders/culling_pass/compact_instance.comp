@@ -21,6 +21,11 @@ layout(std430, binding = 5) writeonly buffer InstanceData {
     vec4 instance_datas[];
 };
 
+layout(std430, binding = 7) writeonly buffer OutliningBuffer {
+    vec4 outlining_instance_datas[3];
+    VkDrawIndexedIndirectCommand outlining_command;
+};
+
 // 5.将可见的 MeshInstance 索引压缩到连续的缓冲区中
 layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
 void main() {
@@ -28,7 +33,7 @@ void main() {
     if (mesh_instance_index >= visible_mesh_instance_count) {
         return;
     }
-    
+
     uvec2 instance_info = visible_mesh_instance_indices[mesh_instance_index];
     MeshInstance mesh_instance = mesh_instances[instance_info.x];
     uint mesh_id = mesh_instance.mesh_id;
@@ -37,4 +42,17 @@ void main() {
     instance_datas[offset + 0] = vec4(mesh_instance.location, instance_info.x);
     instance_datas[offset + 1] = vec4(mesh_instance.rotation, 0);
     instance_datas[offset + 2] = vec4(mesh_instance.scale, 0);
+
+    // 选中的实例可见时，为 outlining pass 写入实例数据和间接绘制命令
+    // (reset_indirect_command.comp 每帧清零 instance_count，选中物被剔除时不残留)
+    if (instance_info.x == selected_mesh_instance_index) {
+        outlining_instance_datas[0] = vec4(mesh_instance.location, 0);
+        outlining_instance_datas[1] = vec4(mesh_instance.rotation, 0);
+        outlining_instance_datas[2] = vec4(mesh_instance.scale, 0);
+        outlining_command.index_count = primitive_descriptors[primitive_index].index_count;
+        outlining_command.instance_count = 1;
+        outlining_command.first_index = primitive_descriptors[primitive_index].first_index;
+        outlining_command.vertex_offset = primitive_descriptors[primitive_index].vertex_offset;
+        outlining_command.first_instance = 0;
+    }
 }
