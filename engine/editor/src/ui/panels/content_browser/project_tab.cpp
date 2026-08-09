@@ -1,48 +1,14 @@
 #include "ui/panels/content_browser/project_tab.hpp"
+#include "ui/editor_scene.hpp"
 #include "ui/ui_context.hpp"
+#include "ui/undo.hpp"
 #include "ui/icons.hpp"
-#include "engine/global_context.hpp"
-#include "function/framework/component/mesh/mesh_component.hpp"
+#include "ui/widgets.hpp"
 #include <imgui_internal.h>
 
 namespace wen::editor {
 
 namespace fs = std::filesystem;
-
-glm::vec3 editorSpawnLocation() {
-    auto* camera_data = global_context->camera_system->queryCameraData(global_ui_context->viewport_camera_id);
-    auto world = glm::inverse(camera_data->view);
-    glm::vec3 position(world[3]);
-    glm::vec3 forward(-world[2]);
-    return position + glm::normalize(forward) * 8.0f;
-}
-
-GameObject* spawnMeshGameObject(const fs::path& mesh_file) {
-    auto* scene = global_context->scene_manager->getActiveScene();
-    if (scene == nullptr) {
-        return nullptr;
-    }
-
-    fs::path models_dir = fs::path(global_context->asset_system->getRootDir()) / "models";
-    std::error_code ec;
-    auto relative = fs::relative(mesh_file, models_dir, ec);
-    if (ec) {
-        return nullptr;
-    }
-    auto relative_str = relative.generic_string();
-
-    auto mesh_id = global_context->asset_system->loadMesh(relative_str);
-    if (mesh_id == MeshID(-1)) {
-        return nullptr;
-    }
-
-    auto* game_object = scene->createGameObject(mesh_file.stem().string());
-    auto* transform = new TransformComponent;
-    transform->location = editorSpawnLocation();
-    game_object->addComponent(transform);
-    game_object->addComponent(new MeshComponent(mesh_id));
-    return game_object;
-}
 
 namespace {
 
@@ -56,6 +22,18 @@ std::string lowerExtension(const fs::path& path) {
 
 bool isMeshFile(const fs::path& path) {
     return lowerExtension(path) == ".obj";
+}
+
+bool isSceneFile(const fs::path& path) {
+    return lowerExtension(path) == ".scene";
+}
+
+// 请求打开场景:实际加载由 Editor 在 ImGui 帧外执行,这里只发起请求。
+void requestOpenScene(const fs::path& file) {
+    if (global_ui_context->mode != Mode::eEdit) {
+        return;
+    }
+    global_ui_context->scene_file_actions.requestOpen(file);
 }
 
 bool matchesSearch(const std::string& name, const char* search) {
@@ -217,7 +195,6 @@ void ProjectTab::render() {
     }
 }
 
-// 右对齐的搜索框
 void ProjectTab::renderToolbar() {
     float search_width = 260.0f;
     float pen_x = ImGui::GetCursorPosX();
@@ -273,57 +250,13 @@ void ProjectTab::renderDirectoryTree(const fs::path& dir) {
 }
 
 void ProjectTab::renderBreadcrumbPath() {
-    std::error_code ec;
+    ImGui::AlignTextToFramePadding();
+    ImGui::TextColored(entryColor(true, false), "%s", icons::kFolder);
+    ImGui::SameLine();
 
-    // 构建路径分段
-    std::vector<std::pair<std::string, fs::path>> segments;
-    segments.push_back({"Assets", root_});
-
-    if (current_dir_ != root_) {
-        auto relative = fs::relative(current_dir_, root_, ec);
-        if (!ec) {
-            fs::path current_path = root_;
-            for (const auto& part : relative) {
-                current_path /= part;
-                segments.push_back({part.string(), current_path});
-            }
-        }
-    }
-
-    for (size_t i = 0; i < segments.size(); ++i) {
-        const auto& [name, path] = segments[i];
-        bool is_current = (path == current_dir_);
-
-        // 根分段前面放一个文件夹图标
-        if (i == 0) {
-            ImGui::AlignTextToFramePadding();
-            ImGui::TextColored(entryColor(true, false), "%s", icons::kFolder);
-            ImGui::SameLine();
-        }
-
-        if (!is_current) {
-            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
-            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.3f, 0.5f, 0.8f, 0.2f));
-            ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.3f, 0.5f, 0.8f, 0.3f));
-
-            if (ImGui::Button(name.c_str())) {
-                pending_navigation_ = path;
-            }
-
-            ImGui::PopStyleColor(3);
-            ImGui::SameLine(0, 2.0f);
-        } else {
-            ImGui::AlignTextToFramePadding();
-            ImGui::TextUnformatted(name.c_str());
-            ImGui::SameLine(0, 2.0f);
-        }
-
-        if (i < segments.size() - 1) {
-            ImGui::AlignTextToFramePadding();
-            ImGui::TextDisabled("/");
-            ImGui::SameLine(0, 2.0f);
-        }
-    }
+    widgets::breadcrumb(root_, current_dir_, [this](const fs::path& target) {
+        pending_navigation_ = target;
+    });
 }
 
 void ProjectTab::renderContent() {
@@ -362,12 +295,7 @@ void ProjectTab::renderContent() {
             entries.push_back({entry.path(), entry.is_directory(ec)});
         }
     }
-    std::sort(entries.begin(), entries.end(), [](const Entry& a, const Entry& b) {
-        if (a.is_directory != b.is_directory) {
-            return a.is_directory;
-        }
-        return a.path.filename() < b.path.filename();
-    });
+    widgets::sortFolderFirst(entries, [](const Entry& e) { return e.is_directory; });
 
     if (entries.empty()) {
         ImGui::TextDisabled(searching ? "No matches." : "This folder is empty");
@@ -380,7 +308,6 @@ void ProjectTab::renderContent() {
     ImGui::EndChild();
 }
 
-// 底部状态条:左侧完整路径,右侧缩放滑条
 void ProjectTab::renderStatusBar() {
     auto path_text = displayPath(selected_entry_.empty() ? current_dir_ : selected_entry_);
     inlineIcon(icons::kFolder, entryColor(true, false));
@@ -394,7 +321,6 @@ void ProjectTab::renderStatusBar() {
     zoomSlider("##tile_size", &s_tile_size, kMinTileSize, kMaxTileSize, slider_width);
 }
 
-// 处理最近提交条目的拖拽源(网格)、单击选中、双击和右键菜单
 void ProjectTab::handleItemInteractions(const Entry& entry, bool is_mesh, const std::string& name) {
     if (is_mesh && ImGui::BeginDragDropSource()) {
         auto path_str = entry.path.string();
@@ -412,6 +338,8 @@ void ProjectTab::handleItemInteractions(const Entry& entry, bool is_mesh, const 
                 pending_navigation_ = entry.path;
             } else if (is_mesh) {
                 addMeshToScene(entry.path);
+            } else if (isSceneFile(entry.path)) {
+                requestOpenScene(entry.path);
             }
         }
     }
@@ -425,6 +353,10 @@ void ProjectTab::handleItemInteractions(const Entry& entry, bool is_mesh, const 
         } else if (is_mesh) {
             if (ImGui::MenuItem("Add to Scene")) {
                 addMeshToScene(entry.path);
+            }
+        } else if (isSceneFile(entry.path)) {
+            if (ImGui::MenuItem("Open Scene")) {
+                requestOpenScene(entry.path);
             }
         } else {
             ImGui::TextDisabled("No actions");
@@ -499,6 +431,7 @@ void ProjectTab::addMeshToScene(const fs::path& file) {
         if (on_select_game_object_) {
             on_select_game_object_(game_object->getUUID());
         }
+        pushGameObjectCreated(game_object);
     }
 }
 

@@ -12,8 +12,12 @@ GameObject::GameObject(const std::string& name) : name_(name) {
 }
 
 GameObject::~GameObject() {
+    // 两阶段析构:先让所有组件跑 onDestroy(此时还能互相 queryComponent,
+    // 例如 MeshComponent 需要反查 TransformComponent 解绑回调),再统一释放。
     for (auto& component : components_) {
         component->onDestroy();
+    }
+    for (auto& component : components_) {
         delete component;
     }
     components_.clear();
@@ -70,8 +74,11 @@ void GameObject::removeComponent(Component* component) {
         WEN_CORE_ERROR("component with uuid {} does not exist in game object {}.", uuid, name_)
         return;
     }
-    components_.remove(iter->second);
+    auto* removed = iter->second;
+    components_.remove(removed);
     component_map_.erase(iter);
+    removed->onDestroy();
+    delete removed;
 }
 
 Component* GameObject::queryComponent(const std::string& class_name) {

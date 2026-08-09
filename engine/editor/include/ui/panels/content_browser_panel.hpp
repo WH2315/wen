@@ -6,6 +6,7 @@
 
 namespace wen::editor {
 
+// 内容浏览器:组合 Project(资源浏览)与 Console(日志)两个子标签。
 class ContentBrowserPanel : public Panel {
 public:
     void render() override;

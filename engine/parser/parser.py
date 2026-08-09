@@ -437,7 +437,11 @@ def generate_reflect_cpp(classes, include_roots, output_path):
     lines.append("    if (global_context->reflect_system.getInstance() == nullptr) {\n")
     lines.append("        return;\n")
     lines.append("    }\n")
-    lines.append("    auto& reflect_system = *global_context->reflect_system;\n\n")
+    lines.append("    if (global_context->component_factory.getInstance() == nullptr) {\n")
+    lines.append("        return;\n")
+    lines.append("    }\n")
+    lines.append("    auto& reflect_system = *global_context->reflect_system;\n")
+    lines.append("    auto& component_factory = *global_context->component_factory;\n\n")
 
     for cls in classes:
         if cls.reflect_name is None:
@@ -454,6 +458,9 @@ def generate_reflect_cpp(classes, include_roots, output_path):
             lines.append(
                 f'        class_builder.addFunction("{reflect_name}", &{cls.qualified_name}::{function_name});\n'
             )
+        lines.append(
+            f'        component_factory.tryRegister<{cls.qualified_name}>("{cls.reflect_name}");\n'
+        )
         lines.append("    }\n\n")
 
     lines.append("}\n")

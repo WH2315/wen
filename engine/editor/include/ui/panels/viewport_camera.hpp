@@ -4,15 +4,8 @@
 
 namespace wen::editor {
 
-// 在引擎 CameraSystem 中分配一个专用的编辑器相机,并上报它的视图/投影矩阵。
-//
-// 交互(仅当 Viewport 面板被悬停时才会开始):
-//   - 按住右键:飞行 - 鼠标转向 + WASD 沿视线移动,QE 垂直移动,
-//     Shift 加速,滚轮调整飞行速度。
-//   - Alt+左键:围绕相机前方的枢轴点环绕。
-//   - 中键:平移。
-//   - 滚轮(非飞行时):沿视线方向推拉。
-//   - focusOn():框选目标(F 快捷键,由 UI 处理)。
+// 编辑器相机:在引擎 CameraSystem 分配专用相机并上报视图/投影矩阵。
+// 交互(悬停视口时):右键飞行 + WASD,Alt+左键环绕,中键平移,滚轮推拉。
 class ViewportCamera {
 public:
     ViewportCamera();

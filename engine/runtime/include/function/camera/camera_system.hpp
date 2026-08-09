@@ -1,12 +1,11 @@
 #pragma once
 
 #include "core/base/singleton.hpp"
+#include "function/camera/camera_types.hpp"
 #include "function/render/interface/resource/buffer.hpp"
 #include <glm/glm.hpp>
 
 namespace wen {
-
-using CameraID = uint32_t;
 
 struct CameraData {
     alignas(16) glm::mat4 view;

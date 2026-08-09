@@ -6,15 +6,12 @@ namespace wen {
 void Engine::startupEngine() {
     global_context = new GlobalContext;
     global_context->startup();
-    global_context->reflect_system->registerReflectProperties();
-    global_context->render_system->createRenderer();
     prepareTimer();
     WEN_CORE_INFO("engine startup.")
 }
 
 void Engine::shutdownEngine() {
     WEN_CORE_INFO("engine shutdown.")
-    global_context->render_system->destroyRenderer();
     global_context->shutdown();
     delete global_context;
     global_context = nullptr;

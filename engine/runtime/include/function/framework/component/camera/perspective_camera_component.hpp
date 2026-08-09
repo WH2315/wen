@@ -11,6 +11,9 @@ public:
     std::string getClassName() const override { return "PerspectiveCameraComponent"; }
     static std::string GetClassName() { return "PerspectiveCameraComponent"; }
 
+    // 反序列化/工厂构造用:成员随后由反射填入,再经 triggerMemberUpdateCallbacks 重建投影。
+    PerspectiveCameraComponent() : PerspectiveCameraComponent(60.0f, 16.0f, 9.0f, 0.1f, 1000.0f) {}
+
     PerspectiveCameraComponent(float fov_degrees, float width, float height, float near_plane, float far_plane)
         : fov(fov_degrees), near(near_plane), far(far_plane), fallback_aspect_(width / height) {
         updateProjection();

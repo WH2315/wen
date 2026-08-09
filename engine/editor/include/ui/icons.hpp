@@ -1,7 +1,5 @@
 #pragma once
 
-// 编辑器 Nerd Font 字体中的图标字形(Font Awesome 码点,位于私有使用区),
-// UTF-8 编码。字形由 Renderer::ImguiPass 加载的 ImGui 字体按需提供。
 namespace wen::editor::icons {
 
 inline constexpr const char* kFolder = "\xEF\x81\xBB";      // U+F07B 文件夹

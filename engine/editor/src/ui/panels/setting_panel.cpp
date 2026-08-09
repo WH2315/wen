@@ -1,4 +1,4 @@
-#include "ui/panels/setting/setting_panel.hpp"
+#include "ui/panels/setting_panel.hpp"
 #include "ui/ui_context.hpp"
 #include "engine/global_context.hpp"
 

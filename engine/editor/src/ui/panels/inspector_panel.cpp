@@ -1,4 +1,4 @@
-#include "ui/panels/inspector/inspector_panel.hpp"
+#include "ui/panels/inspector_panel.hpp"
 #include "ui/ui_context.hpp"
 #include "engine/global_context.hpp"
 

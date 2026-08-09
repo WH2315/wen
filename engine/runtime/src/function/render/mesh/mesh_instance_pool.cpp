@@ -24,6 +24,30 @@ void MeshInstancePool::createMeshInstance(const MeshInstance& mesh_instance, Gam
     mesh_instance_index_to_game_object_uuid_map.insert({current_instance_count - 1, uuid});
 }
 
+void MeshInstancePool::removeMeshInstance(GameObjectUUID uuid) {
+    auto iter = game_object_uuid_to_mesh_instance_index_map.find(uuid);
+    if (iter == game_object_uuid_to_mesh_instance_index_map.end()) {
+        return;
+    }
+    uint32_t index = iter->second;
+    uint32_t last = current_instance_count - 1;
+    auto* base = static_cast<MeshInstance*>(mesh_instance_buffer->map());
+
+    if (index != last) {
+        // 把末尾实例搬到被删位置,并修正它的索引映射
+        base[index] = base[last];
+        auto moved_uuid = mesh_instance_index_to_game_object_uuid_map.at(last);
+        game_object_uuid_to_mesh_instance_index_map[moved_uuid] = index;
+        mesh_instance_index_to_game_object_uuid_map[index] = moved_uuid;
+    }
+
+    game_object_uuid_to_mesh_instance_index_map.erase(uuid);
+    mesh_instance_index_to_game_object_uuid_map.erase(last);
+    current_instance_count--;
+    // 保持写入指针指向下一个空位
+    mesh_instance_buffer_ptr = base + current_instance_count;
+}
+
 MeshInstance* MeshInstancePool::getMeshInstancePtr(GameObjectUUID uuid) {
     return static_cast<MeshInstance*>(mesh_instance_buffer->map()) +
            game_object_uuid_to_mesh_instance_index_map.at(uuid);

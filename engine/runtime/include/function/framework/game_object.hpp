@@ -7,6 +7,7 @@ namespace wen {
 class GameObject final {
 public:
     GameObject(const std::string& name);
+    GameObject(const std::string& name, GameObjectUUID uuid) : uuid_(uuid), name_(name) {}
     ~GameObject();
 
     void awake();
@@ -24,6 +25,8 @@ public:
     auto getUUID() const { return uuid_; }
 
     auto getName() const { return name_; }
+
+    void setName(const std::string& name) { name_ = name; }
 
     template <class C>
     C* queryComponent() {

@@ -1,11 +1,12 @@
 #pragma once
 
-#include "ui/panels/inspector/component_ui/component_ui_manager.hpp"
+#include "ui/component_ui/component_ui_manager.hpp"
+#include "ui/undo.hpp"
 #include "function/framework/component/camera/perspective_camera_component.hpp"
 
 namespace wen::editor {
 
-// PerspectiveCameraComponent 的数据视图
+// PerspectiveCameraComponent 的自定义检查器 UI 特化。
 template <>
 class ComponentView<PerspectiveCameraComponent> {
 public:
@@ -26,9 +27,15 @@ public:
         ImGui::PushID(&view);
         if (ImGui::TreeNodeEx("PerspectiveCameraComponent", ImGuiTreeNodeFlags_DefaultOpen)) {
             bool changed = false;
+            float before_fov = camera.fov;
             changed |= ImGui::DragFloat("fov", &camera.fov, 0.1f, 1.0f, 179.0f);
+            trackMemberEdit(&camera, "fov", before_fov);
+            float before_near = camera.near;
             changed |= ImGui::DragFloat("near", &camera.near, 0.01f, 0.001f, camera.far);
+            trackMemberEdit(&camera, "near", before_near);
+            float before_far = camera.far;
             changed |= ImGui::DragFloat("far", &camera.far, 1.0f, camera.near, 100000.0f);
+            trackMemberEdit(&camera, "far", before_far);
             if (changed) {
                 camera.triggerMemberUpdateCallbacks();
             }

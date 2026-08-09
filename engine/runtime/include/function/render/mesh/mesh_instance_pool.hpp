@@ -12,6 +12,7 @@ public:
     MeshInstancePool(uint32_t max_mesh_instance_count);
 
     void createMeshInstance(const MeshInstance& mesh_instance, GameObjectUUID uuid);
+    void removeMeshInstance(GameObjectUUID uuid);
     MeshInstance* getMeshInstancePtr(GameObjectUUID uuid);
     void clear();
 

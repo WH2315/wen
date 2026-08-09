@@ -1,23 +1,10 @@
 #pragma once
 
 #include "function/framework/uuid_manager.hpp"
-#include <glm/glm.hpp>
-
-namespace wen {
-class GameObject;
-}
 
 namespace wen::editor {
 
-// 从 Content Browser 拖出网格资源时的载荷类型
-inline constexpr const char* kMeshDragDropPayload = "WEN_MESH_PATH";
-
-// 加载网格(按路径缓存)并在编辑器相机前方生成一个带 Transform + Mesh 组件的游戏对象
-GameObject* spawnMeshGameObject(const std::filesystem::path& mesh_file);
-
-// 编辑器相机前方数个单位处的一点(生成位置)
-glm::vec3 editorSpawnLocation();
-
+// 资源浏览器(Project 标签):目录树/面包屑/磁贴列表/搜索,网格拖放与双击打开场景都从这里发起。
 class ProjectTab {
 public:
     ProjectTab();

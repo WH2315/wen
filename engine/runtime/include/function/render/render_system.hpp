@@ -16,6 +16,8 @@ public:
     void render();
     void destroyRenderer();
 
+    void waitIdle();
+
     void enableEditor(const std::function<void()>& ui_callback);
 
     // Editor: ImGui texture id for the offscreen scene (Viewport panel image).

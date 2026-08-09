@@ -6,6 +6,7 @@
 #include "function/input/input_system.hpp"
 #include "function/timer/timer_system.hpp"
 #include "core/reflect/reflect_system.hpp"
+#include "function/framework/component_factory.hpp"
 #include "function/render/render_system.hpp"
 #include "function/framework/uuid_manager.hpp"
 #include "function/asset/asset_system.hpp"
@@ -24,6 +25,7 @@ struct GlobalContext {
     Singleton<InputSystem> input_system;
     Singleton<TimerSystem> timer_system;
     Singleton<ReflectSystem> reflect_system;
+    Singleton<ComponentFactory> component_factory;
     Singleton<RenderSystem> render_system;
     Singleton<GameObjectUUIDAllocator> game_object_uuid_allocator;
     Singleton<ComponentTypeUUIDSystem> component_type_uuid_system;

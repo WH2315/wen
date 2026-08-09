@@ -15,6 +15,7 @@ target_include_directories(${TARGET_NAME} PUBLIC
     ../../3rdlibs/stb
     ../../3rdlibs/VulkanMemoryAllocator
     ../../3rdlibs/tinyobjloader
+    ../../3rdlibs/tinygltf  # vendored nlohmann json.hpp (场景序列化)
 )
 target_link_libraries(${TARGET_NAME} PUBLIC
     spdlog

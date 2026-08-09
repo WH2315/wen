@@ -4,7 +4,7 @@
 
 namespace wen::editor {
 
-// 可停靠编辑器面板(Hierarchy、Viewport、Inspector 等)的基类
+// 可停靠编辑器面板(Hierarchy/Viewport/Inspector 等)的基类。
 class Panel {
 public:
     Panel() = default;

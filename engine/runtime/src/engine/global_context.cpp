@@ -11,21 +11,27 @@ void GlobalContext::startup() {
     input_system.initialize();
     timer_system.initialize();
     reflect_system.initialize();
+    component_factory.initialize();
+    reflect_system->registerReflectProperties();
     render_system.initialize(Renderer::Configuration{.debug = true});
     game_object_uuid_allocator.initialize();
     component_type_uuid_system.initialize();
     asset_system.initialize();
     camera_system.initialize();
     scene_manager.initialize();
+    render_system->createRenderer();
 }
 
 void GlobalContext::shutdown() {
+    render_system->waitIdle();
     scene_manager.destroy();
     camera_system.destroy();
     asset_system.destroy();
     component_type_uuid_system.destroy();
     game_object_uuid_allocator.destroy();
+    render_system->destroyRenderer();
     render_system.destroy();
+    component_factory.destroy();
     reflect_system.destroy();
     timer_system.destroy();
     input_system.destroy();

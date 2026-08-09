@@ -1,4 +1,4 @@
-#include "ui/panels/content_browser/content_browser_panel.hpp"
+#include "ui/panels/content_browser_panel.hpp"
 #include "ui/icons.hpp"
 
 namespace wen::editor {
@@ -13,7 +13,6 @@ void ContentBrowserPanel::render() {
     ImGui::PopStyleVar();
     ImGui::PushFont(nullptr, kBrowserFontSize);
 
-    // Project(资源浏览)和 Console(引擎日志)
     if (ImGui::BeginTabBar("##browser_tabs")) {
         auto project_label = std::string(icons::kFolder) + " Project";
         auto console_label = std::string(icons::kTerminal) + " Console";

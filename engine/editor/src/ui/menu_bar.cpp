@@ -1,6 +1,10 @@
 #include "ui/menu_bar.hpp"
 #include "ui/ui_context.hpp"
+#include "ui/undo.hpp"
 #include "engine/global_context.hpp"
+#include "function/window/window_system.hpp"
+#include "function/window/window.hpp"
+#include <GLFW/glfw3.h>
 
 namespace wen::editor {
 
@@ -27,6 +31,7 @@ void MenuBar::render() {
         renderEditMenu();
         ImGui::EndMainMenuBar();
     }
+    file_dialog_coordinator_.render();
 }
 
 void MenuBar::handleShortcuts() {
@@ -39,22 +44,44 @@ void MenuBar::handleShortcuts() {
     if (ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiKey_Q)) {
         quitApplication();
     }
+    if (global_ui_context->mode == Mode::eEdit) {
+        if (ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiKey_N)) {
+            global_ui_context->scene_file_actions.requestNew();
+        }
+        if (ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiKey_O)) {
+            file_dialog_coordinator_.openOpenSceneDialog();
+        }
+        if (ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiKey_S)) {
+            file_dialog_coordinator_.saveScene(false);
+        }
+        if (ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiMod_Shift | ImGuiKey_S)) {
+            file_dialog_coordinator_.saveScene(true);
+        }
+        if (ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiKey_Z)) {
+            global_undo_stack->undo();
+        }
+        if (ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiKey_Y)) {
+            global_undo_stack->redo();
+        }
+    }
 }
 
 void MenuBar::renderFileMenu() {
     if (ImGui::BeginMenu("File")) {
-        if (ImGui::MenuItem("New Scene", "Ctrl+N")) {
-            // TODO: 新建场景
+        bool is_edit = (global_ui_context->mode == Mode::eEdit);
+        if (ImGui::MenuItem("New Scene", "Ctrl+N", false, is_edit)) {
+            global_ui_context->scene_file_actions.requestNew();
         }
-        if (ImGui::MenuItem("Open Scene...", "Ctrl+O")) {
-            // TODO: 打开场景文件
+        if (ImGui::MenuItem("Open Scene...", "Ctrl+O", false, is_edit)) {
+            file_dialog_coordinator_.openOpenSceneDialog();
         }
         ImGui::Separator();
-        if (ImGui::MenuItem("Save Scene", "Ctrl+S")) {
-            // TODO: 保存当前场景
+
+        if (ImGui::MenuItem("Save Scene", "Ctrl+S", false, is_edit)) {
+            file_dialog_coordinator_.saveScene(false);
         }
-        if (ImGui::MenuItem("Save Scene As...", "Ctrl+Shift+S")) {
-            // TODO: 场景另存为
+        if (ImGui::MenuItem("Save Scene As...", "Ctrl+Shift+S", false, is_edit)) {
+            file_dialog_coordinator_.saveScene(true);
         }
         ImGui::Separator();
         if (ImGui::MenuItem("Quit", "Ctrl+Q")) {
@@ -67,16 +94,23 @@ void MenuBar::renderFileMenu() {
 void MenuBar::renderEditMenu() {
     if (ImGui::BeginMenu("Edit")) {
         bool is_edit = (global_ui_context->mode == Mode::eEdit);
+        if (ImGui::MenuItem("Undo", "Ctrl+Z", false, is_edit && global_undo_stack->canUndo())) {
+            global_undo_stack->undo();
+        }
+        if (ImGui::MenuItem("Redo", "Ctrl+Y", false, is_edit && global_undo_stack->canRedo())) {
+            global_undo_stack->redo();
+        }
+        ImGui::Separator();
         if (ImGui::MenuItem(is_edit ? "Play" : "Stop", "Ctrl+P")) {
             togglePlayMode();
         }
         ImGui::Separator();
         if (ImGui::MenuItem("Frame Selected", "F")) {
-            // TODO: 触发框选当前选中的游戏对象
+
         }
         ImGui::Separator();
         if (ImGui::MenuItem("Preferences...", nullptr)) {
-            // TODO: 打开偏好设置面板
+
         }
         ImGui::EndMenu();
     }

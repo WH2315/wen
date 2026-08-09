@@ -1,12 +1,14 @@
 #include "ui/ui.hpp"
 #include "ui/ui_context.hpp"
 #include "ui/menu_bar.hpp"
+#include "ui/file_dialog.hpp"
 #include "ui/toolbar.hpp"
-#include "ui/panels/setting/setting_panel.hpp"
-#include "ui/panels/hierarchy/hierarchy_panel.hpp"
-#include "ui/panels/viewport/viewport_panel.hpp"
-#include "ui/panels/inspector/inspector_panel.hpp"
-#include "ui/panels/content_browser/content_browser_panel.hpp"
+#include "ui/undo.hpp"
+#include "ui/panels/setting_panel.hpp"
+#include "ui/panels/hierarchy_panel.hpp"
+#include "ui/panels/viewport_panel.hpp"
+#include "ui/panels/inspector_panel.hpp"
+#include "ui/panels/content_browser_panel.hpp"
 #include "engine/global_context.hpp"
 #include "function/framework/component/mesh/mesh_component.hpp"
 #include "core/math/transform_math.hpp"
@@ -16,6 +18,12 @@ namespace wen::editor {
 UI::UI() {
     global_ui_context = new UIContext();
 
+    undo_stack_ = std::make_unique<UndoStack>();
+    global_undo_stack = undo_stack_.get();
+
+    file_dialog_ = std::make_unique<FileDialog>();
+    global_ui_context->file_dialog = file_dialog_.get();
+
     viewport_camera_ = std::make_unique<ViewportCamera>();
     menu_bar_ = std::make_unique<MenuBar>();
     toolbar_ = std::make_unique<Toolbar>();
@@ -23,16 +31,22 @@ UI::UI() {
     auto viewport_panel = std::make_unique<ViewportPanel>();
     auto hierarchy_panel = std::make_unique<HierarchyPanel>();
     auto content_browser_panel = std::make_unique<ContentBrowserPanel>();
+    // 视口拾取/资源生成的对象统一经 Hierarchy 设置选中。
     auto select_callback = [ptr = hierarchy_panel.get()](GameObjectUUID uuid) {
         ptr->selectGameObject(uuid);
     };
     viewport_panel->setOnSelectGameObject(select_callback);
     content_browser_panel->setOnSelectGameObject(select_callback);
-    panels_.push_back(std::move(viewport_panel));
-    panels_.push_back(std::move(hierarchy_panel));
-    panels_.push_back(std::make_unique<InspectorPanel>());
-    panels_.push_back(std::make_unique<SettingPanel>());
-    panels_.push_back(std::move(content_browser_panel));
+
+    registerPanel(std::move(viewport_panel));
+    registerPanel(std::move(hierarchy_panel));
+    registerPanel(std::make_unique<InspectorPanel>());
+    registerPanel(std::make_unique<SettingPanel>());
+    registerPanel(std::move(content_browser_panel));
+}
+
+void UI::registerPanel(std::unique_ptr<Panel> panel) {
+    panels_.push_back(std::move(panel));
 }
 
 UI::~UI() {
@@ -40,11 +54,17 @@ UI::~UI() {
     viewport_camera_.reset();
     menu_bar_.reset();
     toolbar_.reset();
+
+    file_dialog_.reset();
+    undo_stack_.reset();
+    global_undo_stack = nullptr;
     delete global_ui_context;
     global_ui_context = nullptr;
 }
 
 void UI::onLoadScene() {
+
+    global_undo_stack->clear();
     viewport_camera_->reset();
     for (auto& panel : panels_) {
         panel->onLoadScene();
@@ -69,7 +89,7 @@ void UI::onFrame() {
     render();
 }
 
-// 悬停 Viewport 时按 F 框选当前选中的游戏对象
+// 悬停视口时按 F 框选:以选中对象(或其网格包围盒)为中心聚焦编辑器相机。
 void UI::handleFocusShortcut() {
     if (!global_ui_context->viewport_hovered ||
         viewport_camera_->isFlying() ||
@@ -90,6 +110,7 @@ void UI::handleFocusShortcut() {
     float radius = 1.0f;
     if (auto* mesh = game_object->queryComponent<MeshComponent>()) {
         const auto& descriptor = global_context->asset_system->getMeshPool()->mesh_descriptor_buffer_ptr[mesh->mesh_id];
+        // 包围盒中心经模型矩阵变换到世界空间,半径按最大缩放修正。
         glm::vec3 local_center = (descriptor.aabb_min + descriptor.aabb_max) * 0.5f;
         center = transform->location + math::composeModel(transform->rotation, transform->scale) * local_center;
         float max_scale = std::max({std::abs(transform->scale.x),
@@ -107,6 +128,7 @@ void UI::render() {
     menu_bar_->render();
     toolbar_->render();
 
+    // Dockspace 宿主窗口:铺满工具栏下方的剩余区域。
     ImGuiViewport* viewport = ImGui::GetMainViewport();
     const float toolbar_height = Toolbar::height();
     ImGui::SetNextWindowPos(ImVec2(viewport->WorkPos.x, viewport->WorkPos.y + toolbar_height));

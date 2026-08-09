@@ -48,14 +48,14 @@ ConsoleStore& store() {
     return instance;
 }
 
-// 向控制台存储写入的 spdlog sink(日志可能来自固定步长线程，因此存储用互斥锁保护)
+// 捕获引擎日志的 spdlog sink;日志可能来自固定步长线程,存储用互斥锁保护。
 class ConsoleSink : public spdlog::sinks::base_sink<std::mutex> {
 protected:
     void sink_it_(const spdlog::details::log_msg& msg) override {
         spdlog::memory_buf_t formatted;
         formatter_->format(msg, formatted);
         auto text = fmt::to_string(formatted);
-        // 去掉格式化器追加的末尾换行
+
         while (!text.empty() && (text.back() == '\n' || text.back() == '\r')) {
             text.pop_back();
         }

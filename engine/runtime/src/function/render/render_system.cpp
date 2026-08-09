@@ -18,6 +18,10 @@ void RenderSystem::createRenderer() {
     render_framework_ = std::make_unique<RenderFramework>();
 }
 
+void RenderSystem::waitIdle() {
+    Renderer::manager->device->device.waitIdle();
+}
+
 void RenderSystem::render() {
     render_framework_->render();
 }

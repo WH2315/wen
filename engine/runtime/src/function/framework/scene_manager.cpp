@@ -48,6 +48,17 @@ GameObject* Scene::createGameObject(const std::string& name) {
     return game_object;
 }
 
+GameObject* Scene::createGameObject(const std::string& name, GameObjectUUID uuid) {
+    if (game_object_map_.find(uuid) != game_object_map_.end()) {
+        WEN_CORE_ERROR("game object with uuid {} already exists in scene {}.", uuid, name_)
+        return nullptr;
+    }
+    auto* game_object = new GameObject(name, uuid);
+    game_object_map_.insert({uuid, game_object});
+    game_objects_.push_back(game_object);
+    return game_object;
+}
+
 void Scene::removeGameObject(GameObject* game_object) {
     auto uuid = game_object->getUUID();
     auto iter = game_object_map_.find(uuid);
@@ -57,6 +68,8 @@ void Scene::removeGameObject(GameObject* game_object) {
     }
     game_objects_.remove(iter->second);
     game_object_map_.erase(iter);
+    // 析构会触发各组件的 onDestroy(网格实例反注册、相机移除等)。
+    delete game_object;
 }
 
 SceneManager::SceneManager() {
@@ -84,6 +97,25 @@ Scene* SceneManager::createScene(const std::string& name) {
     return scene;
 }
 
+bool SceneManager::renameScene(const std::string& old_name, const std::string& new_name) {
+    if (old_name == new_name) {
+        return true;
+    }
+    auto iter = scenes_.find(old_name);
+    if (iter == scenes_.end()) {
+        WEN_CORE_ERROR("Scene {} does not exist.", old_name)
+        return false;
+    }
+    if (scenes_.find(new_name) != scenes_.end()) {
+        destroyScene(new_name);
+    }
+    auto* scene = iter->second;
+    scene->setName(new_name);
+    scenes_.erase(iter);
+    scenes_.insert({new_name, scene});
+    return true;
+}
+
 void SceneManager::loadScene(const std::string& name) {
     auto iter = scenes_.find(name);
     if (iter == scenes_.end()) {
@@ -91,6 +123,21 @@ void SceneManager::loadScene(const std::string& name) {
         return;
     }
     change_scene_ = iter->second;
+}
+
+void SceneManager::destroyScene(const std::string& name) {
+    auto iter = scenes_.find(name);
+    if (iter == scenes_.end()) {
+        return;
+    }
+    if (active_scene_ == iter->second) {
+        active_scene_ = nullptr;
+    }
+    if (change_scene_ == iter->second) {
+        change_scene_ = nullptr;
+    }
+    delete iter->second;
+    scenes_.erase(iter);
 }
 
 void SceneManager::start() {

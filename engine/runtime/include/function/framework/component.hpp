@@ -41,6 +41,8 @@ public:
 
     auto getComponentTypeUUID() const { return uuid_; }
 
+    GameObject* getGameObject() const { return game_object_; }
+
 protected:
     ALLOW_PRIVATE_REFLECT()
 

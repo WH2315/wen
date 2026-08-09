@@ -1,4 +1,4 @@
-#include "ui/panels/viewport/viewport_camera.hpp"
+#include "ui/panels/viewport_camera.hpp"
 #include "ui/ui_context.hpp"
 #include "engine/global_context.hpp"
 #include <imgui.h>
@@ -42,21 +42,19 @@ glm::vec3 ViewportCamera::upDirection() const {
 }
 
 glm::vec3 ViewportCamera::leftDirection() const {
-    // "A 键"的横移方向:仅含偏航的前向向量再左转 90°。
     return glm::rotateY(glm::vec3(0.0f, 0.0f, 1.0f), glm::radians(yaw_ + 90.0f));
 }
 
 void ViewportCamera::onTick(float dt, bool viewport_hovered, bool gizmo_busy) {
     auto& io = ImGui::GetIO();
 
-    // 保持投影宽高比与(可能已改变大小的)面板同步。
     updateProjectMatrix();
 
+    // 交互状态机:悬停时按下才进入,按键松开后结束。
     bool rmb = ImGui::IsMouseDown(ImGuiMouseButton_Right);
     bool lmb = ImGui::IsMouseDown(ImGuiMouseButton_Left);
     bool mmb = ImGui::IsMouseDown(ImGuiMouseButton_Middle);
 
-    // 交互只在悬停时开始;按住的按键会让交互持续。
     if (!flying_ && rmb && viewport_hovered) {
         flying_ = true;
     }
@@ -103,6 +101,7 @@ void ViewportCamera::onTick(float dt, bool viewport_hovered, bool gizmo_busy) {
         if (ImGui::IsKeyDown(ImGuiKey_E)) { location_.y += delta; changed = true; }
     } else if (orbiting_) {
         if (io.MouseDelta.x != 0.0f || io.MouseDelta.y != 0.0f) {
+            // 绕前方固定枢轴点环绕:先求枢轴,改朝向后再回到枢轴距离。
             glm::vec3 pivot = location_ + forwardDirection() * orbit_distance_;
             yaw_ -= io.MouseDelta.x * look_speed;
             pitch_ = std::clamp(pitch_ + io.MouseDelta.y * look_speed, -89.0f, 89.0f);
@@ -143,8 +142,6 @@ void ViewportCamera::updateViewMatrix() {
 }
 
 void ViewportCamera::updateProjectMatrix() {
-    // 宽高比来自 Viewport 面板(由 ViewportPanel 写入);投影用面板宽高比
-    // 构建后,离屏图像拉伸铺满面板时比例才是正确的,与离屏分辨率无关。
     float aspect = global_ui_context->viewport_aspect;
     if (aspect <= 0.0f) {
         aspect = 16.0f / 9.0f;

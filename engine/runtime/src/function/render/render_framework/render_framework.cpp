@@ -84,7 +84,6 @@ RenderFramework::RenderFramework(bool enable_editor, const std::function<void()>
 }
 
 RenderFramework::~RenderFramework() {
-    renderer_->waitIdle();
     if (viewport_texture_ != VK_NULL_HANDLE) {
         ImGui_ImplVulkan_RemoveTexture(viewport_texture_);
         viewport_texture_ = VK_NULL_HANDLE;

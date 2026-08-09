@@ -1,6 +1,8 @@
-#include "ui/panels/viewport/viewport_panel.hpp"
+#include "ui/panels/viewport_panel.hpp"
 #include "ui/ui_context.hpp"
-#include "ui/panels/content_browser/project_tab.hpp"
+#include "ui/undo.hpp"
+#include "ui/widgets.hpp"
+#include "ui/editor_scene.hpp"
 #include "engine/global_context.hpp"
 #include "function/framework/component/transform/transform_component.hpp"
 #include <glm/gtc/type_ptr.hpp>
@@ -13,8 +15,8 @@ struct GizmoTool {
     ImGuiKey key;
     const char* label;
     const char* tooltip;
-    bool enable;                    // false = "观察"工具(隐藏 gizmo)
-    ImGuizmo::OPERATION operation;  // enable 为 false 时忽略
+    bool enable;
+    ImGuizmo::OPERATION operation;
 };
 
 constexpr GizmoTool kGizmoTools[] = {
@@ -55,7 +57,6 @@ void ViewportPanel::render() {
     ImVec2 region = ImGui::GetContentRegionAvail();
     if (region.y > 0.0f) {
         global_ui_context->viewport_aspect = region.x / region.y;
-        // 场景(编辑相机和游戏相机)都显示在这个面板里，相机必须用面板的宽高比构建投影
         global_context->render_system->setViewportAspectOverride(global_ui_context->viewport_aspect);
     }
 
@@ -63,13 +64,14 @@ void ViewportPanel::render() {
     if (texture != VK_NULL_HANDLE && region.x > 0.0f && region.y > 0.0f) {
         ImGui::Image(texture, region);
 
-        // Content Browser 网格资源的放置目标
         if (global_ui_context->mode == Mode::eEdit && ImGui::BeginDragDropTarget()) {
             if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(kMeshDragDropPayload)) {
                 std::filesystem::path file(std::string(static_cast<const char*>(payload->Data), payload->DataSize - 1));
-                if (auto* game_object = spawnMeshGameObject(file);
-                    game_object != nullptr && on_select_game_object_) {
-                    on_select_game_object_(game_object->getUUID());
+                if (auto* game_object = spawnMeshGameObject(file)) {
+                    if (on_select_game_object_) {
+                        on_select_game_object_(game_object->getUUID());
+                    }
+                    pushGameObjectCreated(game_object);
                 }
             }
             ImGui::EndDragDropTarget();
@@ -105,20 +107,6 @@ void ViewportPanel::handleToolShortcuts() {
 }
 
 void ViewportPanel::renderToolbar(const ImVec2& image_pos) {
-    auto tool_button = [](const char* label, bool active, const char* tooltip) {
-        if (active) {
-            ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive));
-        }
-        bool pressed = ImGui::Button(label);
-        if (active) {
-            ImGui::PopStyleColor();
-        }
-        if (ImGui::IsItemHovered()) {
-            ImGui::SetTooltip("%s", tooltip);
-        }
-        return pressed;
-    };
-
     ImGui::SetCursorScreenPos(ImVec2(image_pos.x + 8.0f, image_pos.y + 8.0f));
     ImGui::BeginGroup();
 
@@ -126,13 +114,13 @@ void ViewportPanel::renderToolbar(const ImVec2& image_pos) {
         if (&tool != &kGizmoTools[0]) {
             ImGui::SameLine();
         }
-        if (tool_button(tool.label, isGizmoToolActive(tool), tool.tooltip)) {
+        if (widgets::toggleButton(tool.label, isGizmoToolActive(tool), tool.tooltip)) {
             applyGizmoTool(tool);
         }
     }
     ImGui::SameLine();
     const char* mode_label = (global_ui_context->gizmo_mode == ImGuizmo::WORLD) ? "World" : "Local";
-    if (tool_button(mode_label, false, "Toggle World/Local (X)")) {
+    if (widgets::toggleButton(mode_label, false, "Toggle World/Local (X)")) {
         toggleGizmoMode();
     }
 
@@ -157,6 +145,13 @@ void ViewportPanel::renderGizmo(const ImVec2& image_pos, const ImVec2& image_siz
         return;
     }
 
+    // 手势尚未开始时记录拖动起点,手势结束推一条撤销命令。
+    if (!gizmo_using_) {
+        gizmo_start_location_ = transform->location;
+        gizmo_start_rotation_ = transform->rotation;
+        gizmo_start_scale_ = transform->scale;
+    }
+
     auto* camera_data = global_context->camera_system->queryCameraData(global_ui_context->viewport_camera_id);
 
     ImGuizmo::SetOrthographic(false);
@@ -170,7 +165,7 @@ void ViewportPanel::renderGizmo(const ImVec2& image_pos, const ImVec2& image_siz
         glm::value_ptr(transform->scale),
         glm::value_ptr(matrix));
 
-    // Ctrl 启用吸附
+    // Ctrl 启用吸附:平移/缩放 0.5,旋转按 15° 步进。
     float snap_values[3] = {0.0f, 0.0f, 0.0f};
     const float* snap = nullptr;
     if (ImGui::GetIO().KeyCtrl) {
@@ -204,6 +199,16 @@ void ViewportPanel::renderGizmo(const ImVec2& image_pos, const ImVec2& image_siz
             &transform->scale.x);
         transform->triggerMemberUpdateCallbacks();
     }
+
+    // 一次拖动手势结束 → 一条撤销命令(三个成员合并,一次 Ctrl+Z 撤销整个手势)。
+    bool using_now = ImGuizmo::IsUsing();
+    if (gizmo_using_ && !using_now) {
+        pushPropertyEdit(global_ui_context->selected_game_object_uuid, TransformComponent::GetClassName(),
+                         {{"location", gizmo_start_location_, transform->location},
+                          {"rotation", gizmo_start_rotation_, transform->rotation},
+                          {"scale", gizmo_start_scale_, transform->scale}});
+    }
+    gizmo_using_ = using_now;
 }
 
 void ViewportPanel::handlePicking(const ImVec2& image_pos, const ImVec2& image_size) {
@@ -227,7 +232,7 @@ void ViewportPanel::handlePicking(const ImVec2& image_pos, const ImVec2& image_s
         return;
     }
 
-    // 面板里的图像是离屏场景拉伸后的结果，把面板坐标映射回离屏(交换链尺寸)像素
+    // 面板里的图像是离屏场景拉伸后的结果,把面板坐标映射回离屏像素。
     auto config = global_context->render_system->getRendererConfig();
     auto x = static_cast<uint32_t>(x_factor * config.swapchain_image_width);
     auto y = static_cast<uint32_t>(y_factor * config.swapchain_image_height);
