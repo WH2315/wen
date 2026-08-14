@@ -23,6 +23,8 @@ public:
     virtual vk::ImageLayout getImageLayout() = 0;
     virtual vk::ImageView getImageView() = 0;
     virtual uint32_t getMipLevels() = 0;
+    // 加载是否成功(资源创建失败时返回 false,便于上层兜底)。
+    virtual bool isValid() const { return true; }
 };
 
 class DataTexture : public SpecificTexture {
@@ -33,6 +35,7 @@ public:
     vk::ImageLayout getImageLayout() override { return vk::ImageLayout::eShaderReadOnlyOptimal; }
     vk::ImageView getImageView() override { return image_view_; }
     uint32_t getMipLevels() override { return mip_levels_; }
+    bool isValid() const override { return image_ != nullptr; }
 
 private:
     std::unique_ptr<Image> image_;
@@ -48,6 +51,7 @@ public:
     vk::ImageLayout getImageLayout() override { return vk::ImageLayout::eShaderReadOnlyOptimal; }
     vk::ImageView getImageView() override { return texture_->getImageView(); }
     uint32_t getMipLevels() override { return texture_->getMipLevels(); }
+    bool isValid() const override { return texture_ != nullptr; }
 
 private:
     std::unique_ptr<DataTexture> texture_;
@@ -61,10 +65,33 @@ public:
     vk::ImageLayout getImageLayout() override { return vk::ImageLayout::eGeneral; }
     vk::ImageView getImageView() override { return image_view_; }
     uint32_t getMipLevels() override { return 1; }
-    
+    auto getImage() { return image_->image; }
+
 private:
     std::unique_ptr<Image> image_;
     vk::ImageView image_view_;
+};
+
+// 立方体贴图:cube-compatible 的 6 层图像,含采样用的 cube 视图,
+// 以及每个 mip 一个 2D array 视图(供计算着色器逐层写入)。
+class CubeTexture : public SpecificTexture {
+public:
+    CubeTexture(uint32_t size, uint32_t mip_levels, vk::Format format, vk::ImageUsageFlags extra_usage);
+    ~CubeTexture() override;
+
+    vk::ImageLayout getImageLayout() override { return vk::ImageLayout::eShaderReadOnlyOptimal; }
+    vk::ImageView getImageView() override { return cube_view_; }
+    uint32_t getMipLevels() override { return mip_levels_; }
+    bool isValid() const override { return image_ != nullptr; }
+
+    auto getImage() { return image_->image; }
+    vk::ImageView getArrayView(uint32_t mip) { return array_views_[mip]; }
+
+private:
+    std::unique_ptr<Image> image_;
+    vk::ImageView cube_view_;
+    std::vector<vk::ImageView> array_views_;
+    uint32_t mip_levels_;
 };
 
 class DepthImage : public SpecificTexture {

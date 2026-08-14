@@ -16,6 +16,8 @@ struct Configuration {
     uint32_t current_frame_in_flight = 0;
     vk::SampleCountFlagBits msaa_samples = vk::SampleCountFlagBits::e1;
     bool msaa() const { return msaa_samples != vk::SampleCountFlagBits::e1; }
+    // LOD 调试:按当前选中的 LOD 层级给网格着色(默认关闭,编辑器 Setting 面板可勾选)。
+    bool lod_debug_enabled = false;
 };
 
 }  // namespace wen::Renderer

@@ -37,6 +37,12 @@ void SettingPanel::render() {
         }
     }
 
+    // LOD 调试:勾选后按当前选中的 LOD 层级给网格着色(默认关闭)。
+    bool lod_debug = Renderer::renderer_config.lod_debug_enabled;
+    if (ImGui::Checkbox("LOD Debug", &lod_debug)) {
+        Renderer::renderer_config.lod_debug_enabled = lod_debug;
+    }
+
     ImGui::End();
 }
 

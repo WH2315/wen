@@ -19,6 +19,8 @@ public:
 
     void onLoadScene();
     void onUnloadScene();
+    // Prefab 实例重建后广播给各面板(丢弃缓存的组件视图/指针)。
+    void onPrefabReverted();
 
     void onFrame();
     void render();
@@ -32,6 +34,7 @@ public:
 
 private:
     void handleFocusShortcut();
+    void updateWindowTitle();
 
     std::vector<std::unique_ptr<Panel>> panels_;
     std::unique_ptr<ViewportCamera> viewport_camera_;
@@ -39,6 +42,8 @@ private:
     std::unique_ptr<Toolbar> toolbar_;
     std::unique_ptr<FileDialog> file_dialog_;
     std::unique_ptr<UndoStack> undo_stack_;
+
+    std::string window_title_;  // 最近一次设置的窗口标题(脏标记变化时才更新)
 };
 
 }  // namespace wen::editor

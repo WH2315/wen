@@ -5,6 +5,7 @@
 #include "engine/global_context.hpp"
 #include "function/framework/scene_manager.hpp"
 #include "function/framework/scene_serializer.hpp"
+#include "function/framework/component/script/script_component.hpp"
 #include "core/base/macro.hpp"
 
 namespace wen::editor {
@@ -116,6 +117,157 @@ private:
     std::string after_;
 };
 
+// 组件反射成员的快照(名称 -> 值),供组件增删撤销时恢复。
+using MemberSnapshot = std::vector<std::pair<std::string, MemberValue>>;
+
+MemberSnapshot snapshotComponentMembers(Component* component) {
+    const auto& descriptor = global_context->reflect_system->getClass(component->getClassName());
+    MemberSnapshot out;
+    for (const auto& name : descriptor.getMemberNames()) {
+        const auto& member = descriptor.getMember(name);
+        switch (member.getType()) {
+            case MemberType::eInt:
+                out.push_back({name, member.getValueConstByPtr<int>(component)});
+                break;
+            case MemberType::eFloat:
+                out.push_back({name, member.getValueConstByPtr<float>(component)});
+                break;
+            case MemberType::eBool:
+                out.push_back({name, member.getValueConstByPtr<bool>(component)});
+                break;
+            case MemberType::eVec2:
+                out.push_back({name, member.getValueConstByPtr<glm::vec2>(component)});
+                break;
+            case MemberType::eVec3:
+                out.push_back({name, member.getValueConstByPtr<glm::vec3>(component)});
+                break;
+            case MemberType::eVec4:
+                out.push_back({name, member.getValueConstByPtr<glm::vec4>(component)});
+                break;
+            case MemberType::eString:
+                out.push_back({name, member.getValueConstByPtr<std::string>(component)});
+                break;
+            case MemberType::eCustom:
+                break;
+        }
+    }
+    return out;
+}
+
+void applyComponentSnapshot(Component* component, const MemberSnapshot& snapshot) {
+    const auto& descriptor = global_context->reflect_system->getClass(component->getClassName());
+    for (const auto& [name, value] : snapshot) {
+        const auto& member = descriptor.getMember(name);
+        std::visit([&](const auto& v) { member.setValueByPtr(component, v); }, value);
+    }
+    component->triggerMemberUpdateCallbacks();
+}
+
+// 组件添加与删除共用一条命令:redo 方向由 created 翻转。移除时快照成员,
+// 恢复时经工厂重建并重放快照(运行期状态由 onCreate 重建)。
+class ComponentExistenceCommand final : public EditorCommand {
+public:
+    ComponentExistenceCommand(GameObjectUUID uuid, Component* component, bool created)
+        : uuid_(uuid), component_class_(component->getClassName()), created_(created) {
+        if (!created_) {
+            snapshot_ = snapshotComponentMembers(component);
+        }
+    }
+
+    void undo() override { created_ ? removeComponent() : restoreComponent(); }
+    void redo() override { created_ ? restoreComponent() : removeComponent(); }
+
+private:
+    void removeComponent() {
+        auto* game_object = findGameObject(uuid_);
+        if (game_object == nullptr) {
+            return;
+        }
+        if (auto* component = game_object->queryComponent(component_class_)) {
+            game_object->removeComponent(component);
+        }
+    }
+
+    void restoreComponent() {
+        auto* game_object = findGameObject(uuid_);
+        if (game_object == nullptr || game_object->queryComponent(component_class_) != nullptr) {
+            return;
+        }
+        auto* component = global_context->component_factory->create(component_class_);
+        if (component == nullptr) {
+            return;
+        }
+        // 先挂到对象上(addComponent 设置 game_object_ 并跑 onCreate),再重放成员快照:
+        // 否则成员回调(如 MaterialComponent 写网格实例)会在 game_object_ 为空时触发。
+        game_object->addComponent(component);
+        if (!created_) {
+            applyComponentSnapshot(component, snapshot_);
+        }
+    }
+
+    GameObjectUUID uuid_;
+    std::string component_class_;
+    bool created_;
+    MemberSnapshot snapshot_;  // 仅移除时记录
+};
+
+// 脚本字段编辑:按 uuid 定位 GO 的 ScriptComponent,把字段写回脚本。字段值存
+// ScriptValue(运行时类型),不经过反射成员。
+class ScriptFieldEditCommand final : public EditorCommand {
+public:
+    ScriptFieldEditCommand(GameObjectUUID uuid, std::string field_name,
+                           ScriptValue before, ScriptValue after)
+        : uuid_(uuid), field_name_(std::move(field_name)),
+          before_(std::move(before)), after_(std::move(after)) {}
+
+    void undo() override { apply(before_); }
+    void redo() override { apply(after_); }
+
+private:
+    void apply(const ScriptValue& value) {
+        auto* game_object = findGameObject(uuid_);
+        if (game_object == nullptr) {
+            return;
+        }
+        auto* script_component = game_object->queryComponent<ScriptComponent>();
+        if (script_component == nullptr || script_component->script() == nullptr) {
+            return;
+        }
+        script_component->script()->setField(field_name_, value);
+    }
+
+    GameObjectUUID uuid_;
+    std::string field_name_;
+    ScriptValue before_;
+    ScriptValue after_;
+};
+
+// Prefab 实例整份重载:改前/改后各存一份对象 JSON,undo/redo 都按原 uuid 重建
+// (removeGameObject 后 deserializeGameObject),对象身份与选中保持稳定。
+class PrefabRevertCommand final : public EditorCommand {
+public:
+    PrefabRevertCommand(GameObjectUUID uuid, std::string before, std::string after)
+        : uuid_(uuid), before_(std::move(before)), after_(std::move(after)) {}
+
+    void undo() override { restore(before_); }
+    void redo() override { restore(after_); }
+
+private:
+    void restore(const std::string& snapshot) {
+        auto* game_object = findGameObject(uuid_);
+        if (game_object == nullptr) {
+            return;
+        }
+        auto* scene = global_context->scene_manager->getActiveScene();
+        scene->removeGameObject(game_object);
+        SceneSerializer::deserializeGameObject(scene, snapshot, uuid_);
+    }
+
+    GameObjectUUID uuid_;
+    std::string before_;
+    std::string after_;
+};
+
 }  // namespace
 
 void UndoStack::push(std::unique_ptr<EditorCommand> command) {
@@ -125,6 +277,8 @@ void UndoStack::push(std::unique_ptr<EditorCommand> command) {
     if (undo_stack_.size() > kMaxCommands) {
         undo_stack_.pop_front();
     }
+    // 任何入栈的编辑操作都视为场景已修改(标题栏打星、切换场景时提示保存)。
+    global_ui_context->scene_file_actions.markDirty();
 }
 
 void UndoStack::undo() {
@@ -159,6 +313,25 @@ MemberValue& pendingMemberEditValue() {
     return value;
 }
 
+ScriptValue& pendingScriptFieldValue() {
+    static ScriptValue value;
+    return value;
+}
+
+void pushScriptFieldEdit(GameObjectUUID uuid, const std::string& field_name,
+                         const ScriptValue& before, const ScriptValue& after) {
+    if (global_undo_stack != nullptr) {
+        global_undo_stack->push(
+            std::make_unique<ScriptFieldEditCommand>(uuid, field_name, before, after));
+    }
+}
+
+void pushPrefabRevert(GameObjectUUID uuid, const std::string& before, const std::string& after) {
+    if (global_undo_stack != nullptr) {
+        global_undo_stack->push(std::make_unique<PrefabRevertCommand>(uuid, before, after));
+    }
+}
+
 void pushPropertyEdit(GameObjectUUID uuid, const std::string& component_class,
                       std::vector<MemberChange> changes) {
     if (global_undo_stack != nullptr) {
@@ -182,6 +355,20 @@ void pushGameObjectDeleted(GameObject* game_object) {
 void pushGameObjectRenamed(GameObjectUUID uuid, const std::string& before, const std::string& after) {
     if (global_undo_stack != nullptr) {
         global_undo_stack->push(std::make_unique<RenameCommand>(uuid, before, after));
+    }
+}
+
+void pushComponentAdded(GameObject* game_object, Component* component) {
+    if (global_undo_stack != nullptr) {
+        global_undo_stack->push(
+            std::make_unique<ComponentExistenceCommand>(game_object->getUUID(), component, true));
+    }
+}
+
+void pushComponentRemoved(GameObject* game_object, Component* component) {
+    if (global_undo_stack != nullptr) {
+        global_undo_stack->push(
+            std::make_unique<ComponentExistenceCommand>(game_object->getUUID(), component, false));
     }
 }
 

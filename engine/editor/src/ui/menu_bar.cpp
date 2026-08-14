@@ -18,6 +18,12 @@ void togglePlayMode() {
 }
 
 void quitApplication() {
+    auto& sfa = global_ui_context->scene_file_actions;
+    if (sfa.isDirty()) {
+        // 脏场景:挂起退出,等保存确认框决定是否退出。
+        sfa.setPendingOperation({PendingOperationKind::eQuit});
+        return;
+    }
     auto* window = global_context->window_system->getRuntimeWindow();
     glfwSetWindowShouldClose(window->getWindow(), GLFW_TRUE);
 }

@@ -22,10 +22,17 @@ private:
 template <>
 class ComponentUI<PerspectiveCameraComponent> {
 public:
-    void render(ComponentView<PerspectiveCameraComponent>& view) {
+    void render(ComponentView<PerspectiveCameraComponent>& view, const std::function<void()>& on_remove = {}) {
         auto& camera = view.getCamera();
         ImGui::PushID(&view);
-        if (ImGui::TreeNodeEx("PerspectiveCameraComponent", ImGuiTreeNodeFlags_DefaultOpen)) {
+        bool open = ImGui::TreeNodeEx("PerspectiveCameraComponent", ImGuiTreeNodeFlags_DefaultOpen);
+        if (on_remove) {
+            ImGui::SameLine();
+            if (ImGui::SmallButton("Remove")) {
+                on_remove();
+            }
+        }
+        if (open) {
             bool changed = false;
             float before_fov = camera.fov;
             changed |= ImGui::DragFloat("fov", &camera.fov, 0.1f, 1.0f, 179.0f);

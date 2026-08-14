@@ -25,6 +25,8 @@ public:
     uint32_t getWidth() const { return width_; }
     uint32_t getHeight() const { return height_; }
 
+    void setTitle(const std::string& title) { glfwSetWindowTitle(window_, title.c_str()); }
+
 private:
     GLFWwindow* window_;
     uint32_t width_;

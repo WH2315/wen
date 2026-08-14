@@ -1,9 +1,11 @@
 #include "ui/panels/content_browser/project_tab.hpp"
 #include "ui/editor_scene.hpp"
+#include "ui/prefab_actions.hpp"
 #include "ui/ui_context.hpp"
 #include "ui/undo.hpp"
 #include "ui/icons.hpp"
 #include "ui/widgets.hpp"
+#include "engine/global_context.hpp"
 #include <imgui_internal.h>
 
 namespace wen::editor {
@@ -26,6 +28,10 @@ bool isMeshFile(const fs::path& path) {
 
 bool isSceneFile(const fs::path& path) {
     return lowerExtension(path) == ".scene";
+}
+
+bool isPrefabFile(const fs::path& path) {
+    return lowerExtension(path) == ".prefab";
 }
 
 // 请求打开场景:实际加载由 Editor 在 ImGui 帧外执行,这里只发起请求。
@@ -110,6 +116,16 @@ std::string fitLabel(const std::string& text, float max_width) {
 ProjectTab::ProjectTab() {
     root_ = fs::path("engine/assets");
     current_dir_ = root_;
+}
+
+void ProjectTab::revealAsset(const fs::path& file) {
+    if (file.empty()) {
+        return;
+    }
+    // 直接改当前目录并高亮条目(无需 pending_navigation_,避免被选中清除逻辑重置)。
+    current_dir_ = file.parent_path();
+    selected_entry_ = file;
+    search_[0] = '\0';  // 退出搜索模式,显示文件所在目录
 }
 
 std::string ProjectTab::displayPath(const fs::path& dir) const {
@@ -321,10 +337,12 @@ void ProjectTab::renderStatusBar() {
     zoomSlider("##tile_size", &s_tile_size, kMinTileSize, kMaxTileSize, slider_width);
 }
 
-void ProjectTab::handleItemInteractions(const Entry& entry, bool is_mesh, const std::string& name) {
-    if (is_mesh && ImGui::BeginDragDropSource()) {
+void ProjectTab::handleItemInteractions(const Entry& entry, bool is_mesh, bool is_prefab,
+                                        const std::string& name) {
+    if ((is_mesh || is_prefab) && ImGui::BeginDragDropSource()) {
         auto path_str = entry.path.string();
-        ImGui::SetDragDropPayload(kMeshDragDropPayload, path_str.c_str(), path_str.size() + 1);
+        ImGui::SetDragDropPayload(is_prefab ? kPrefabDragDropPayload : kMeshDragDropPayload,
+                                  path_str.c_str(), path_str.size() + 1);
         ImGui::TextUnformatted(name.c_str());
         ImGui::EndDragDropSource();
     }
@@ -336,6 +354,8 @@ void ProjectTab::handleItemInteractions(const Entry& entry, bool is_mesh, const 
         if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
             if (entry.is_directory) {
                 pending_navigation_ = entry.path;
+            } else if (is_prefab) {
+                addPrefabToScene(entry.path);
             } else if (is_mesh) {
                 addMeshToScene(entry.path);
             } else if (isSceneFile(entry.path)) {
@@ -349,6 +369,10 @@ void ProjectTab::handleItemInteractions(const Entry& entry, bool is_mesh, const 
         if (entry.is_directory) {
             if (ImGui::MenuItem("Open")) {
                 pending_navigation_ = entry.path;
+            }
+        } else if (is_prefab) {
+            if (ImGui::MenuItem("Add to Scene")) {
+                addPrefabToScene(entry.path);
             }
         } else if (is_mesh) {
             if (ImGui::MenuItem("Add to Scene")) {
@@ -374,6 +398,7 @@ void ProjectTab::renderTiles(const std::vector<Entry>& entries) {
     for (const auto& entry : entries) {
         auto name = entry.path.filename().string();
         bool is_mesh = !entry.is_directory && isMeshFile(entry.path);
+        bool is_prefab = !entry.is_directory && isPrefabFile(entry.path);
         bool selected = entry.path == selected_entry_;
 
         ImGui::PushID(entry.path.string().c_str());
@@ -391,7 +416,7 @@ void ProjectTab::renderTiles(const std::vector<Entry>& entries) {
         ImGui::PopStyleColor(4);
 
         bool tile_hovered = ImGui::IsItemHovered();
-        handleItemInteractions(entry, is_mesh, name);
+        handleItemInteractions(entry, is_mesh, is_prefab, name);
         if (tile_hovered) {
             ImGui::SetTooltip("%s", name.c_str());
         }
@@ -414,11 +439,12 @@ void ProjectTab::renderList(const std::vector<Entry>& entries) {
     for (const auto& entry : entries) {
         auto name = entry.path.filename().string();
         bool is_mesh = !entry.is_directory && isMeshFile(entry.path);
+        bool is_prefab = !entry.is_directory && isPrefabFile(entry.path);
 
         ImGui::PushID(entry.path.string().c_str());
         inlineIcon(entryIcon(entry.path, entry.is_directory), entryColor(entry.is_directory, is_mesh));
         ImGui::Selectable(name.c_str(), entry.path == selected_entry_);
-        handleItemInteractions(entry, is_mesh, name);
+        handleItemInteractions(entry, is_mesh, is_prefab, name);
         ImGui::PopID();
     }
 }
@@ -428,6 +454,25 @@ void ProjectTab::addMeshToScene(const fs::path& file) {
         return;
     }
     if (auto* game_object = spawnMeshGameObject(file)) {
+        if (on_select_game_object_) {
+            on_select_game_object_(game_object->getUUID());
+        }
+        pushGameObjectCreated(game_object);
+    }
+}
+
+void ProjectTab::addPrefabToScene(const fs::path& file) {
+    if (global_ui_context->mode != Mode::eEdit) {
+        return;
+    }
+    auto prefabs_dir = fs::path(global_context->asset_system->getRootDir()) / "prefabs";
+    std::error_code ec;
+    auto relative = fs::relative(file, prefabs_dir, ec);
+    if (ec) {
+        WEN_CLIENT_WARN("Prefab: {} is outside <root>/prefabs, ignored.", file.string())
+        return;
+    }
+    if (auto* game_object = instantiatePrefab(relative.generic_string())) {
         if (on_select_game_object_) {
             on_select_game_object_(game_object->getUUID());
         }

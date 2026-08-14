@@ -25,6 +25,7 @@ public:
     std::shared_ptr<PushConstants> createPushConstants(ShaderStages stages, const std::vector<std::pair<std::string, ConstantType>>& infos);
     std::shared_ptr<NormalModel> loadNormalModel(const std::string& filename, const std::vector<std::string>& blacklist = {});
     std::shared_ptr<StorageImage> createStorageImage(uint32_t width, uint32_t height, vk::Format format, vk::ImageUsageFlags usage = {});
+    std::shared_ptr<CubeTexture> createCubeTexture(uint32_t size, uint32_t mip_levels, vk::Format format, vk::ImageUsageFlags extra_usage = {});
     std::shared_ptr<RayTracingShaderProgram> createRayTracingShaderProgram();
     std::shared_ptr<RayTracingRenderPipeline> createRayTracingRenderPipeline(std::shared_ptr<RayTracingShaderProgram> shader_program);
     std::shared_ptr<AccelerationStructure> createAccelerationStructure();

@@ -1,0 +1,43 @@
+#version 450
+
+#extension GL_GOOGLE_include_directive : require
+
+#include "common.glsl"
+
+// 镜面预过滤:按粗糙度对环境贴图做 GGX 重要性采样,写入预过滤立方体贴图的对应 mip。
+// 每个 mip 单独 dispatch,目标视图已绑定到对应 mip 的 2D array 视图。
+layout(local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
+
+layout(binding = 0) uniform samplerCube env_tex;
+layout(rgba32f, binding = 1) uniform writeonly image2DArray prefiltered_tex;
+
+layout(push_constant) uniform Constants {
+    uint sample_count;
+    float roughness;
+} pc;
+
+void main() {
+    ivec3 gid = ivec3(gl_GlobalInvocationID);
+    ivec3 dim = imageSize(prefiltered_tex);
+    if (gid.x >= dim.x || gid.y >= dim.y || gid.z >= 6) {
+        return;
+    }
+    vec2 uv = (vec2(gid.xy) + 0.5) / vec2(dim.xy);
+    vec3 n = normalize(cube_dir(gid.z, uv));
+    vec3 v = n;  // 对预过滤贴图,v = r = n
+
+    vec3 color = vec3(0.0);
+    float total_weight = 0.0;
+    for (uint i = 0; i < pc.sample_count; i++) {
+        vec2 xi = hammersley(i, pc.sample_count);
+        vec3 h = importance_sample_ggx(xi, n, pc.roughness);
+        vec3 l = normalize(2.0 * dot(v, h) * h - v);
+        float ndotl = max(dot(n, l), 0.0);
+        if (ndotl > 0.0) {
+            color += texture(env_tex, l).rgb * ndotl;
+            total_weight += ndotl;
+        }
+    }
+    color /= max(total_weight, 1e-4);
+    imageStore(prefiltered_tex, gid, vec4(color, 1.0));
+}

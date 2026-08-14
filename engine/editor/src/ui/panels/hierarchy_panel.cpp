@@ -3,6 +3,7 @@
 #include "ui/undo.hpp"
 #include "ui/selection.hpp"
 #include "ui/editor_scene.hpp"
+#include "ui/prefab_actions.hpp"
 #include "engine/global_context.hpp"
 #include "function/framework/scene_manager.hpp"
 #include "function/framework/game_object.hpp"
@@ -27,9 +28,10 @@ void HierarchyPanel::render() {
     auto* scene = global_context->scene_manager->getActiveScene();
     auto selected_uuid = global_ui_context->selected_game_object_uuid;
 
-    // 增删/复制推迟到遍历结束后执行,避免在遍历 game_objects_ 时修改它。
+    // 增删/复制/建 prefab 推迟到遍历结束后执行,避免在遍历 game_objects_ 时修改它。
     GameObjectUUID pending_delete = kInvalidGameObjectUUID;
     GameObjectUUID pending_duplicate = kInvalidGameObjectUUID;
+    GameObjectUUID pending_prefab = kInvalidGameObjectUUID;
     bool pending_create = false;
 
     if (scene && ImGui::IsWindowFocused() && !ImGui::GetIO().WantTextInput &&
@@ -90,6 +92,9 @@ void HierarchyPanel::render() {
                         beginRename(game_object);
                     }
                     ImGui::Separator();
+                    if (ImGui::MenuItem("Create Prefab")) {
+                        pending_prefab = uuid;
+                    }
                     if (ImGui::MenuItem("Delete", "Del")) {
                         pending_delete = uuid;
                     }
@@ -135,6 +140,13 @@ void HierarchyPanel::render() {
                 selectGameObject(clone->getUUID());
                 pushGameObjectCreated(clone);
             }
+        }
+    }
+
+    if (pending_prefab != kInvalidGameObjectUUID) {
+        if (auto* game_object = scene->getGameObject(pending_prefab)) {
+            // 存成 <root>/prefabs/<对象名>.prefab(相对路径,重名自动加 _2/_3)。
+            createPrefab(game_object, game_object->getName() + ".prefab");
         }
     }
 

@@ -83,6 +83,10 @@ std::shared_ptr<StorageImage> Interface::createStorageImage(uint32_t width, uint
     return std::make_shared<StorageImage>(width, height, format, usage);
 }
 
+std::shared_ptr<CubeTexture> Interface::createCubeTexture(uint32_t size, uint32_t mip_levels, vk::Format format, vk::ImageUsageFlags extra_usage) {
+    return std::make_shared<CubeTexture>(size, mip_levels, format, extra_usage);
+}
+
 std::shared_ptr<RayTracingShaderProgram> Interface::createRayTracingShaderProgram() {
     return std::make_shared<RayTracingShaderProgram>();
 }

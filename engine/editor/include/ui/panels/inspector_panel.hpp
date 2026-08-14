@@ -9,6 +9,7 @@ namespace wen::editor {
 class InspectorPanel : public Panel {
 public:
     void onUnloadScene() override;
+    void onPrefabReverted() override;
     void render() override;
 
 private:

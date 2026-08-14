@@ -49,6 +49,8 @@ public:
     void bindStorageBuffer(uint32_t binding, std::shared_ptr<SpecificBuffer> storage_buffer);
     void bindStorageImages(uint32_t binding, const std::vector<std::shared_ptr<StorageImage>>& storage_images);
     void bindStorageImage(uint32_t binding, std::shared_ptr<StorageImage> storage_image);
+    // 绑定一个原始 image view 作为 storage image(供 IBL 预积分写立方体贴图各层)。
+    void bindStorageImageView(uint32_t binding, vk::ImageView image_view, vk::ImageLayout layout);
     void bindDepthImages(uint32_t binding, const std::vector<std::shared_ptr<DepthImage>>& depth_images, std::shared_ptr<Sampler> sampler);
     void bindAccelerationStructures(uint32_t binding, const std::vector<std::shared_ptr<RayTracingInstance>>& instances);
     void bindAccelerationStructure(uint32_t binding, std::shared_ptr<RayTracingInstance> instance);

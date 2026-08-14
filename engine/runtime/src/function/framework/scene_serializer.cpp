@@ -1,9 +1,12 @@
 #include "function/framework/scene_serializer.hpp"
 #include "function/framework/game_object.hpp"
 #include "function/framework/component_factory.hpp"
+#include "function/framework/component/script/script_component.hpp"
+#include "function/script/script.hpp"
 #include "engine/global_context.hpp"
 #include "core/base/macro.hpp"
 #include <json.hpp>
+#include <type_traits>
 #include <fstream>
 
 namespace wen {
@@ -11,6 +14,32 @@ namespace wen {
 namespace {
 
 using json = nlohmann::json;
+
+// 按脚本字段当前类型(ScriptValue index)把 JSON 值转回 ScriptValue,int/float 互相宽容。
+ScriptValue scriptValueFromJson(const json& value, size_t field_index) {
+    switch (field_index) {
+        case 0:  // int
+            return value.is_number_integer() ? ScriptValue(value.get<int>())
+                                             : ScriptValue(static_cast<int>(value.get<float>()));
+        case 1:  // float
+            return value.is_number_integer() ? ScriptValue(static_cast<float>(value.get<int>()))
+                                             : ScriptValue(value.get<float>());
+        case 2:  // bool
+            return ScriptValue(value.get<bool>());
+        case 3:  // vec2
+            return ScriptValue(glm::vec2(value.at(0).get<float>(), value.at(1).get<float>()));
+        case 4:  // vec3
+            return ScriptValue(glm::vec3(value.at(0).get<float>(), value.at(1).get<float>(),
+                                         value.at(2).get<float>()));
+        case 5:  // vec4
+            return ScriptValue(glm::vec4(value.at(0).get<float>(), value.at(1).get<float>(),
+                                         value.at(2).get<float>(), value.at(3).get<float>()));
+        case 6:  // string
+            return ScriptValue(value.get<std::string>());
+        default:
+            return ScriptValue(0.0f);
+    }
+}
 
 json serializeMembers(Component* component, const ClassDescriptor& descriptor) {
     json members = json::object();
@@ -95,15 +124,39 @@ void deserializeMembers(Component* component, const ClassDescriptor& descriptor,
 }
 
 // 单个游戏对象 -> JSON。
-json gameObjectToJson(GameObject* game_object) {
+json gameObjectToJson(GameObject* game_object, const std::string& exclude_class = "") {
     json object;
     object["name"] = game_object->getName();
     json components = json::array();
     for (auto* component : game_object->getComponents()) {
+        if (!exclude_class.empty() && component->getClassName() == exclude_class) {
+            continue;  // 序列化时跳过指定类组件(如 prefab 模板里的 PrefabComponent)
+        }
         json comp;
         comp["class"] = component->getClassName();
         comp["members"] = serializeMembers(
             component, global_context->reflect_system->getClass(component->getClassName()));
+        // 脚本组件额外序列化脚本字段(非反射成员,特判处理)。
+        if (auto* script_component = dynamic_cast<ScriptComponent*>(component)) {
+            if (auto* script = script_component->script()) {
+                json script_fields = json::object();
+                for (const auto& field : script->fields()) {
+                    std::visit([&](const auto& v) {
+                        using T = std::decay_t<decltype(v)>;
+                        if constexpr (std::is_same_v<T, glm::vec2>) {
+                            script_fields[field.name] = {v.x, v.y};
+                        } else if constexpr (std::is_same_v<T, glm::vec3>) {
+                            script_fields[field.name] = {v.x, v.y, v.z};
+                        } else if constexpr (std::is_same_v<T, glm::vec4>) {
+                            script_fields[field.name] = {v.x, v.y, v.z, v.w};
+                        } else {
+                            script_fields[field.name] = v;
+                        }
+                    }, field.value);
+                }
+                comp["script_fields"] = std::move(script_fields);
+            }
+        }
         components.push_back(std::move(comp));
     }
     object["components"] = std::move(components);
@@ -125,6 +178,24 @@ void populateGameObject(GameObject* game_object, const json& object_json) {
         }
         game_object->addComponent(component);
         component->triggerMemberUpdateCallbacks();
+        // 脚本组件:恢复脚本字段(类型以脚本声明为准,addComponent 已实例化脚本)。
+        if (auto* script_component = dynamic_cast<ScriptComponent*>(component)) {
+            if (auto* script = script_component->script()) {
+                if (comp_json.contains("script_fields")) {
+                    for (auto it = comp_json["script_fields"].begin();
+                         it != comp_json["script_fields"].end(); ++it) {
+                        size_t field_index = 0;
+                        for (const auto& field : script->fields()) {
+                            if (field.name == it.key()) {
+                                field_index = field.value.index();
+                                break;
+                            }
+                        }
+                        script->setField(it.key(), scriptValueFromJson(it.value(), field_index));
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -215,11 +286,12 @@ Scene* SceneSerializer::loadFromString(const std::string& text) {
     return scene;
 }
 
-std::string SceneSerializer::serializeGameObject(GameObject* game_object) {
+std::string SceneSerializer::serializeGameObject(GameObject* game_object,
+                                                 const std::string& exclude_class) {
     if (game_object == nullptr) {
         return {};
     }
-    return gameObjectToJson(game_object).dump();
+    return gameObjectToJson(game_object, exclude_class).dump();
 }
 
 GameObject* SceneSerializer::deserializeGameObject(Scene* scene, const std::string& text, GameObjectUUID uuid) {

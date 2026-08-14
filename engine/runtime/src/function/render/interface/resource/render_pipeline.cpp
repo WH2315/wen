@@ -251,10 +251,12 @@ void GraphicsRenderPipeline::compile(const GraphicsRenderPipelineOptions& option
     // 8. color blending
     vk::PipelineColorBlendStateCreateInfo color_blend = {};
     auto locked_renderer = renderer_.lock();
+    std::vector<vk::PipelineColorBlendAttachmentState> blend_attachments;
     uint32_t subpass_index = locked_renderer->render_pass->getSubpassIndex(subpass_name_);
-    auto subpass = *locked_renderer->render_pass->subpasses[subpass_index];
+    auto& subpass = *locked_renderer->render_pass->subpasses[subpass_index];
+    blend_attachments = subpass.color_blend_attachments;
     color_blend.setLogicOpEnable(false)
-        .setAttachments(subpass.color_blend_attachments)
+        .setAttachments(blend_attachments)
         .setBlendConstants({0.0f, 0.0f, 0.0f, 0.0f});
     
     // 9. dynamic state

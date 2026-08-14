@@ -2,6 +2,7 @@
 
 #include "function/framework/component.hpp"
 #include "function/framework/game_object.hpp"
+#include "function/script/script.hpp"
 #include <imgui.h>
 #include <glm/glm.hpp>
 #include <deque>
@@ -58,8 +59,20 @@ void pushGameObjectDeleted(GameObject* game_object);
 
 void pushGameObjectRenamed(GameObjectUUID uuid, const std::string& before, const std::string& after);
 
+// 组件增删(Inspector):添加/移除组件可撤销,移除时快照成员、恢复时重放。
+void pushComponentAdded(GameObject* game_object, Component* component);
+void pushComponentRemoved(GameObject* game_object, Component* component);
+
 // 跨帧记录拖动手势起点的值(全局仅一个控件处于激活态)。
 MemberValue& pendingMemberEditValue();
+ScriptValue& pendingScriptFieldValue();
+
+// 脚本字段编辑命令(Inspector 编辑脚本字段入撤销栈)。
+void pushScriptFieldEdit(GameObjectUUID uuid, const std::string& field_name,
+                         const ScriptValue& before, const ScriptValue& after);
+
+// Prefab 实例整份重载:存改前/改后两份 JSON 快照,undo/redo 都按 uuid 重建对象。
+void pushPrefabRevert(GameObjectUUID uuid, const std::string& before, const std::string& after);
 
 // 紧跟在一个编辑控件之后调用:激活瞬间记为手势起点,手势结束
 // (IsItemDeactivatedAfterEdit)时推入一条属性命令。

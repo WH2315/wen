@@ -114,6 +114,7 @@ void RenderFramework::render() {
     // Snapshot the camera matrices for this in-flight frame (report calls
     // during logic only touch CPU staging, so a frame is always consistent).
     global_context->camera_system->uploadFrameData(renderer_->getCurrentFrame());
+    global_context->light_system->uploadFrameData(renderer_->getCurrentFrame());
     for (auto& subpass : subpasses_) {
         subpass->executePreRenderPass(renderer_, *resource_);
     }

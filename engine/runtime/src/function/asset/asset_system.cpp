@@ -43,9 +43,11 @@ AssetSystem::AssetSystem() {
         getMaxMeshCount(),
         getMaxPrimitiveCount()
     );
+    texture_pool_ = std::make_unique<TexturePool>(16);
 }
 
 AssetSystem::~AssetSystem() {
+    texture_pool_.reset();
     mesh_pool_.reset();
 }
 
@@ -130,9 +132,9 @@ MeshID AssetSystem::loadMesh(const std::string& filename, const std::vector<std:
                 };
             }
 
-            float c = pow((float)(data.lods.size() - 1) / max_level_of_details, 0.8);
-            vertex.color = {c, 0.7 - std::abs(0.5 - c), 1 - c};
-
+            // 默认顶点颜色取网格自身颜色(无顶点色的 OBJ 为白色)。
+            // 注意:这里曾用基于 LOD 层级的调试色覆盖(c=0 时 {0,0.2,1}=蓝色),
+            // 已移除 —— 网格默认应显示 base_color(默认白),而非 LOD 调试色。
             if (unique_vertices.count(vertex) == 0) {
                 unique_vertices.insert(std::make_pair(vertex, primitive.positions.size()));
                 primitive.positions.push_back(vertex.position);

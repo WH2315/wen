@@ -47,7 +47,9 @@ void VisibilityPass::createRenderResource(std::shared_ptr<Renderer::Renderer> re
     visibility_pipeline_pipeline_ = interface->createGraphicsRenderPipeline(renderer, visibility_shader_program_, getName());
     visibility_pipeline_pipeline_->setVertexInput(interface->createVertexInput({
         {0, Renderer::InputRate::eVertex, {Renderer::VertexType::eFloat3}},
-        {1, Renderer::InputRate::eInstance, {Renderer::VertexType::eFloat4, Renderer::VertexType::eFloat4, Renderer::VertexType::eFloat4}}
+        // 5 个 vec4:位置/旋转/缩放/材质(基础色+纹理索引)/PBR(金属度+粗糙度),
+        // stride 与 instance_datas 一致(材质成员只被 mesh pass 读取,此处补齐 stride)。
+        {1, Renderer::InputRate::eInstance, {Renderer::VertexType::eFloat4, Renderer::VertexType::eFloat4, Renderer::VertexType::eFloat4, Renderer::VertexType::eFloat4, Renderer::VertexType::eFloat4}}
     }));
     visibility_pipeline_pipeline_->setDescriptorSet(descriptor_set_);
     visibility_pipeline_pipeline_->compile({

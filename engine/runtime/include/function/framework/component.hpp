@@ -10,6 +10,10 @@ class Component : public RTTI {
     friend class GameObject;
 
 public:
+    // 注意:game_object_/uuid_ 必须在构造函数里初始化(不能写默认成员初始化器,
+    // 代码生成器 parser.py 会把尾随标识符当成成员名)。
+    Component() : game_object_(nullptr), uuid_(0) {}
+
     std::string getClassName() const override { return "Component"; }
     static std::string GetClassName() { return "Component"; }
 

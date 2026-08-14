@@ -12,6 +12,8 @@ public:
 
     virtual void onLoadScene() {}
     virtual void onUnloadScene() {}
+    // Prefab 实例被重建后回调(丢弃缓存的组件视图/指针)。
+    virtual void onPrefabReverted() {}
     virtual void render() = 0;
 };
 

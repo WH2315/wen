@@ -71,4 +71,75 @@ inline void sortFolderFirst(std::vector<Entry>& entries, IsDir is_dir) {
     });
 }
 
+// Unity 风格资源字段:显示资源名,右侧圆形拾取按钮,并接受拖放资源路径。
+//   display      字段显示的文本(如网格名或 "(none)")。
+//   drag_payload 接受的拖放载荷类型(如 kMeshDragDropPayload),载荷为路径字符串。
+//   on_drag      拖放命中时回调(载荷字符串)。
+//   draw_picker  拾取弹窗内容(点圆钮打开)。
+//   on_activate  字段点击回调,返回 true 表示已处理(如定位到资源浏览器),
+//                false/未提供则回退打开拾取器。
+// 返回本帧是否通过拖放/拾取设置了一次资源。
+inline bool assetField(const char* label,
+                       const std::string& display,
+                       const char* drag_payload,
+                       const std::function<void(const std::string&)>& on_drag,
+                       const std::function<void()>& draw_picker,
+                       const std::function<bool()>& on_activate = {}) {
+    ImGui::PushID(label);
+    const float picker_size = 20.0f;
+    bool changed = false;
+
+    ImGui::BeginGroup();
+    // 字段本身:有 on_activate 时点击定位资源,否则/未处理时打开拾取器;也是拖放目标。
+    ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0f, 0.5f));
+    if (ImGui::Button(display.c_str(), ImVec2(-picker_size, 0.0f))) {
+        if (!on_activate || !on_activate()) {
+            ImGui::OpenPopup("##asset_picker");
+        }
+    }
+    ImGui::PopStyleVar();
+    ImVec2 field_min = ImGui::GetItemRectMin();
+    ImVec2 field_max = ImGui::GetItemRectMax();
+
+    if (ImGui::BeginDragDropTarget()) {
+        if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(drag_payload)) {
+            if (on_drag) {
+                std::string path(static_cast<const char*>(payload->Data), payload->DataSize - 1);
+                on_drag(path);
+                changed = true;
+            }
+        }
+        ImGui::EndDragDropTarget();
+    }
+
+    ImGui::SameLine();
+    // 圆形拾取按钮(Unity 风格):描边圆 + 中心点。
+    // 高度取帧高(与字段同高),InvisibleButton 不允许零尺寸。
+    ImGui::InvisibleButton("##picker", ImVec2(picker_size, ImGui::GetFrameHeight()));
+    if (ImGui::IsItemHovered()) {
+        ImGui::SetTooltip("Select");
+    }
+    if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) {
+        ImGui::OpenPopup("##asset_picker");
+    }
+    // 圆心取整行(字段 + 圆钮)的垂直中心,保证垂直居中。
+    ImVec2 item_min = ImGui::GetItemRectMin();
+    ImVec2 item_max = ImGui::GetItemRectMax();
+    float center_y = (std::min(field_min.y, item_min.y) + std::max(field_max.y, item_max.y)) * 0.5f;
+    float center_x = (item_min.x + item_max.x) * 0.5f;
+    auto* dl = ImGui::GetWindowDrawList();
+    dl->AddCircle(ImVec2(center_x, center_y), picker_size * 0.35f, ImGui::GetColorU32(ImGuiCol_Text));
+    dl->AddCircleFilled(ImVec2(center_x, center_y), picker_size * 0.12f, ImGui::GetColorU32(ImGuiCol_Text));
+
+    if (ImGui::BeginPopup("##asset_picker")) {
+        if (draw_picker) {
+            draw_picker();
+        }
+        ImGui::EndPopup();
+    }
+    ImGui::EndGroup();
+    ImGui::PopID();
+    return changed;
+}
+
 }  // namespace wen::editor::widgets

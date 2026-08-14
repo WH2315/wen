@@ -43,7 +43,9 @@ CameraID CameraSystem::addCamera(bool is_editor_camera) {
             .project = glm::ortho<float>(0, 1, 0, 1, 0, 1)
         }
     });
-    if (current_primary_viewport_ == 0 && !is_editor_camera) {
+    // 非编辑器相机(场景相机)总是成为主视口:打开/还原场景时新相机要接管,
+    // 否则旧场景相机移除后主视口悬空,导致首帧 Play 黑屏。
+    if (!is_editor_camera) {
         reportCameraAsPrimaryViewport(current_camera_id_);
     }
     return current_camera_id_;

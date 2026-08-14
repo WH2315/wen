@@ -25,6 +25,7 @@ target_link_libraries(${TARGET_NAME} PUBLIC
     VulkanMemoryAllocator
     tinygltf
     imgui
+    lua
 )
 target_link_libraries(${TARGET_NAME} PRIVATE
     glslang glslang::SPIRV glslang::glslang-default-resource-limits

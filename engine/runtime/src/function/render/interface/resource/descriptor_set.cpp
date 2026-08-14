@@ -199,6 +199,27 @@ void DescriptorSet::bindStorageImage(uint32_t binding, std::shared_ptr<StorageIm
     bindStorageImages(binding, {storage_image});
 }
 
+void DescriptorSet::bindStorageImageView(uint32_t binding, vk::ImageView image_view, vk::ImageLayout layout) {
+    auto layout_binding = getBinding(binding);
+    if (layout_binding.descriptorType != vk::DescriptorType::eStorageImage) {
+        WEN_CORE_ERROR("binding {} is not storage image!", binding)
+        return;
+    }
+    for (uint32_t i = 0; i < renderer_config.max_frames_in_flight; i++) {
+        vk::DescriptorImageInfo image_info;
+        image_info.setImageLayout(layout)
+            .setImageView(image_view)
+            .setSampler(nullptr);
+        vk::WriteDescriptorSet write;
+        write.setDstSet(descriptor_sets_[i])
+            .setDstBinding(layout_binding.binding)
+            .setDstArrayElement(0)
+            .setDescriptorType(layout_binding.descriptorType)
+            .setImageInfo({image_info});
+        manager->device->device.updateDescriptorSets({write}, {});
+    }
+}
+
 void DescriptorSet::bindDepthImages(uint32_t binding, const std::vector<std::shared_ptr<DepthImage>>& depth_images, std::shared_ptr<Sampler> sampler) {
     auto layout_binding = getBinding(binding);
     if (layout_binding.descriptorType != vk::DescriptorType::eCombinedImageSampler) {

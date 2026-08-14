@@ -1,12 +1,48 @@
 #include "editor.hpp"
 #include "ui/ui_context.hpp"
+#include "ui/editor_scene.hpp"
+#include "ui/prefab_actions.hpp"
+#include "ui/selection.hpp"
 #include "ui/panels/content_browser_panel.hpp"
 #include "engine/global_context.hpp"
 #include "function/framework/scene_serializer.hpp"
+#include "function/framework/component/transform/transform_component.hpp"
+#include "function/framework/component/camera/perspective_camera_component.hpp"
+#include "function/framework/component/camera/camera_controller_component.hpp"
+#include "function/framework/component/light/directional_light_component.hpp"
 
 namespace wen::editor {
 
 Editor::Editor(Engine* engine) : engine_(engine) {}
+
+// 启动时创建未保存的默认场景:Main Camera + Directional Light。
+// 场景未落盘(current_scene_path 为空),Ctrl+S 会走"另存为"。
+void Editor::createDefaultScene() {
+    auto& scene_manager = *global_context->scene_manager;
+    if (auto* existing = scene_manager.getActiveScene()) {
+        scene_manager.destroyScene(existing->getName());
+    }
+    auto* scene = scene_manager.createScene("Untitled");
+    if (scene == nullptr) {
+        return;
+    }
+    createDefaultSceneObjects(scene);
+    scene_manager.setActiveScene(scene);
+}
+
+// Unity 风格默认对象:Main Camera + Directional Light。
+void Editor::createDefaultSceneObjects(Scene* scene) {
+    auto* camera = scene->createGameObject("Main Camera");
+    auto* camera_transform = new TransformComponent;
+    camera_transform->location = {0.0f, 0.0f, -5.0f};
+    camera->addComponent(camera_transform);
+    camera->addComponent(new PerspectiveCameraComponent(60.0f, 1920.0f, 1080.0f, 0.1f, 1000.0f));
+    camera->addComponent(new CameraControllerComponent);
+
+    auto* light = scene->createGameObject("Directional Light");
+    light->addComponent(new TransformComponent);
+    light->addComponent(new DirectionalLightComponent);
+}
 
 void Editor::initialize() {
     ui_ = std::make_unique<UI>();
@@ -40,6 +76,9 @@ void Editor::initialize() {
 
     ContentBrowserPanel::registerIniSettings();
 
+    // 启动时自动创建未保存的默认场景(Unity 风格:Main Camera + Directional Light)。
+    createDefaultScene();
+
     ui_->onLoadScene();
 }
 
@@ -51,6 +90,7 @@ void Editor::run() {
         // 场景文件操作/还原会销毁重建场景,必须在 ImGui 帧外执行。
         processPlayModeRestore();
         processSceneFileAction();
+        processPrefabAction();
         engine_->pollEvents();
 
         if (global_ui_context->mode == Mode::eGame) {
@@ -103,15 +143,26 @@ void Editor::processSceneFileAction() {
         return;
     }
 
+    // 脏场景下切换(新建/打开)先挂起,由保存确认框决定是否继续。
+    if (scene_file_actions.isDirty() &&
+        (action == SceneFileAction::eNew || action == SceneFileAction::eOpen)) {
+        scene_file_actions.setPendingOperation(
+            action == SceneFileAction::eNew
+                ? PendingOperation{PendingOperationKind::eNew}
+                : PendingOperation{PendingOperationKind::eOpen, pending.file});
+        return;
+    }
+
     auto& scene_manager = *global_context->scene_manager;
     auto* active = scene_manager.getActiveScene();
 
     switch (action) {
         case SceneFileAction::eSave: {
-
             const auto& current_path = scene_file_actions.currentScenePath();
             if (active != nullptr && !current_path.empty()) {
-                SceneSerializer::save(active, current_path);
+                if (SceneSerializer::save(active, current_path)) {
+                    scene_file_actions.clearDirty();
+                }
             }
             break;
         }
@@ -120,13 +171,9 @@ void Editor::processSceneFileAction() {
             if (active == nullptr || target.empty()) {
                 break;
             }
-            // 场景名同步为文件名,保证文件内 "scene" 字段与文件名一致。
-            std::string new_name = target.stem().string();
-            if (!new_name.empty() && new_name != active->getName()) {
-                scene_manager.renameScene(active->getName(), new_name);
-            }
-            if (SceneSerializer::save(active, target)) {
+            if (saveSceneTo(target)) {
                 scene_file_actions.setCurrentScenePath(target);
+                scene_file_actions.clearDirty();
             }
             break;
         }
@@ -137,9 +184,14 @@ void Editor::processSceneFileAction() {
                 scene_manager.destroyScene(active->getName());
             }
             scene_manager.destroyScene("Untitled");
-            scene_manager.setActiveScene(scene_manager.createScene("Untitled"));
+            auto* new_scene = scene_manager.createScene("Untitled");
+            if (new_scene != nullptr) {
+                createDefaultSceneObjects(new_scene);
+            }
+            scene_manager.setActiveScene(new_scene);
 
             scene_file_actions.setCurrentScenePath({});
+            scene_file_actions.clearDirty();
             ui_->onLoadScene();
             break;
         }
@@ -156,12 +208,40 @@ void Editor::processSceneFileAction() {
                 scene_manager.setActiveScene(loaded);
 
                 scene_file_actions.setCurrentScenePath(pending.file);
+                scene_file_actions.clearDirty();
             }
             ui_->onLoadScene();
             break;
         }
         case SceneFileAction::eNone:
             break;
+    }
+}
+
+// 执行面板挂起的 Prefab 实例操作。Revert 会销毁重建对象,必须在 ImGui 帧外执行,
+// 否则正在渲染该对象的面板会持悬空指针崩溃。
+void Editor::processPrefabAction() {
+    auto& pending = global_ui_context->pending_prefab;
+    if (pending.kind == PrefabActionKind::eNone) {
+        return;
+    }
+    auto kind = pending.kind;
+    auto uuid = pending.uuid;
+    pending.kind = PrefabActionKind::eNone;
+
+    auto* scene = global_context->scene_manager->getActiveScene();
+    auto* game_object = scene ? scene->getGameObject(uuid) : nullptr;
+    if (game_object == nullptr) {
+        return;
+    }
+    if (kind == PrefabActionKind::eRevert) {
+        if (revertPrefabInstance(game_object)) {
+            // 对象按同 uuid 重建,刷新选中描边索引(实例池索引可能已变化)。
+            setSelectedGameObject(global_ui_context->selected_game_object_uuid);
+            ui_->onPrefabReverted();
+        }
+    } else if (kind == PrefabActionKind::eApply) {
+        applyPrefabInstance(game_object);
     }
 }
 

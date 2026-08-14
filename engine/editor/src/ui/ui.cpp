@@ -10,6 +10,8 @@
 #include "ui/panels/inspector_panel.hpp"
 #include "ui/panels/content_browser_panel.hpp"
 #include "engine/global_context.hpp"
+#include "function/window/window_system.hpp"
+#include "function/window/window.hpp"
 #include "function/framework/component/mesh/mesh_component.hpp"
 #include "core/math/transform_math.hpp"
 
@@ -37,6 +39,12 @@ UI::UI() {
     };
     viewport_panel->setOnSelectGameObject(select_callback);
     content_browser_panel->setOnSelectGameObject(select_callback);
+
+    // Inspector 对象字段点击"揭示":定位到 Content Browser 的对应资源。
+    auto* content_browser = content_browser_panel.get();
+    global_ui_context->reveal_asset_callback = [content_browser](const std::filesystem::path& path) {
+        content_browser->revealAsset(path);
+    };
 
     registerPanel(std::move(viewport_panel));
     registerPanel(std::move(hierarchy_panel));
@@ -77,6 +85,12 @@ void UI::onUnloadScene() {
     }
 }
 
+void UI::onPrefabReverted() {
+    for (auto& panel : panels_) {
+        panel->onPrefabReverted();
+    }
+}
+
 void UI::onFrame() {
     auto& io = ImGui::GetIO();
     if (global_ui_context->mode == Mode::eEdit) {
@@ -86,7 +100,25 @@ void UI::onFrame() {
     } else {
         global_ui_context->viewport_flying = false;
     }
+    updateWindowTitle();
     render();
+}
+
+// 窗口标题 = "<场景名> - wen",未保存时追加 "*"。仅在变化时更新。
+void UI::updateWindowTitle() {
+    std::string title = "wen";
+    if (auto* scene = global_context->scene_manager->getActiveScene()) {
+        title = scene->getName() + " - wen";
+    }
+    if (global_ui_context->scene_file_actions.isDirty()) {
+        title += " *";
+    }
+    if (title != window_title_) {
+        window_title_ = title;
+        if (auto* window = global_context->window_system->getRuntimeWindow()) {
+            window->setTitle(title);
+        }
+    }
 }
 
 // 悬停视口时按 F 框选:以选中对象(或其网格包围盒)为中心聚焦编辑器相机。

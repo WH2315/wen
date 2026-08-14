@@ -4,6 +4,7 @@
 #include "function/framework/component.hpp"
 #include "function/framework/component/mesh/mesh_component.hpp"
 #include "function/framework/component/transform/transform_component.hpp"
+#include "function/framework/scene_serializer.hpp"
 #include "core/base/macro.hpp"
 
 namespace wen::editor {
@@ -123,6 +124,19 @@ GameObject* spawnMeshGameObject(const fs::path& mesh_file) {
     game_object->addComponent(transform);
     game_object->addComponent(new MeshComponent(mesh_id));
     return game_object;
+}
+
+bool saveSceneTo(const fs::path& path) {
+    auto* scene = global_context->scene_manager->getActiveScene();
+    if (scene == nullptr || path.empty()) {
+        return false;
+    }
+    // 场景名同步为文件名,保证文件内 "scene" 字段与文件名一致。
+    std::string new_name = path.stem().string();
+    if (!new_name.empty() && new_name != scene->getName()) {
+        global_context->scene_manager->renameScene(scene->getName(), new_name);
+    }
+    return SceneSerializer::save(scene, path);
 }
 
 }  // namespace wen::editor

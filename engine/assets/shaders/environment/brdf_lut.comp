@@ -1,0 +1,21 @@
+#version 450
+
+#extension GL_GOOGLE_include_directive : require
+
+#include "common.glsl"
+
+// 预计算 BRDF 积分 LUT:输入 (NdotV, roughness),输出 (scale, bias) 两个分量。
+layout(local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
+
+layout(rg16f, binding = 0) uniform writeonly image2D brdf_lut;
+
+void main() {
+    ivec2 gid = ivec2(gl_GlobalInvocationID.xy);
+    ivec2 dim = imageSize(brdf_lut);
+    if (gid.x >= dim.x || gid.y >= dim.y) {
+        return;
+    }
+    vec2 uv = (vec2(gid.xy) + 0.5) / vec2(dim);
+    vec2 result = integrate_brdf(uv.x, uv.y);
+    imageStore(brdf_lut, gid, vec4(result, 0.0, 1.0));
+}

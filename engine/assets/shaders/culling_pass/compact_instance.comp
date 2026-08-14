@@ -38,10 +38,13 @@ void main() {
     MeshInstance mesh_instance = mesh_instances[instance_info.x];
     uint mesh_id = mesh_instance.mesh_id;
     uint primitive_index = mesh_descriptors[mesh_id].lods[instance_info.y];
-    uint offset = 3 * (indirect_commands[primitive_index].first_instance + atomicAdd(indirect_commands[primitive_index].instance_count, 1));
+    uint offset = 5 * (indirect_commands[primitive_index].first_instance + atomicAdd(indirect_commands[primitive_index].instance_count, 1));
     instance_datas[offset + 0] = vec4(mesh_instance.location, instance_info.x);
     instance_datas[offset + 1] = vec4(mesh_instance.rotation, 0);
     instance_datas[offset + 2] = vec4(mesh_instance.scale, 0);
+    instance_datas[offset + 3] = vec4(mesh_instance.base_color, float(mesh_instance.texture_index));
+    // .w 存 lod_index,供 mesh shader 的 LOD 调试着色使用(instance_info.y = 选中的 LOD 层级)。
+    instance_datas[offset + 4] = vec4(mesh_instance.metallic, mesh_instance.roughness, 0, float(instance_info.y));
 
     // 选中的实例可见时，为 outlining pass 写入实例数据和间接绘制命令
     // (reset_indirect_command.comp 每帧清零 instance_count，选中物被剔除时不残留)

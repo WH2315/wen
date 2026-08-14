@@ -13,6 +13,9 @@ public:
 
     static void registerIniSettings() { ProjectTab::registerIniSettings(); }
 
+    // 在资源浏览器中定位文件(Inspector 对象字段"揭示"用)。
+    void revealAsset(const std::filesystem::path& file) { project_.revealAsset(file); }
+
     void setOnSelectGameObject(const std::function<void(GameObjectUUID uuid)>& callback) {
         project_.setOnSelectGameObject(callback);
     }

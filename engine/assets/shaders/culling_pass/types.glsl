@@ -4,6 +4,10 @@ struct MeshInstance {
     vec3 rotation;
     vec3 scale;
     uint mesh_id;
+    vec3 base_color;
+    uint texture_index;
+    float metallic;
+    float roughness;
 };
 
 struct MeshDescriptor {

@@ -14,7 +14,8 @@ public:
 template <class ComponentType>
 class ComponentUI {
 public:
-    void render(ComponentView<ComponentType>& view);
+    // on_remove:非空时在组件标题行渲染 Remove 按钮,点击回调(移除组件)。
+    void render(ComponentView<ComponentType>& view, const std::function<void()>& on_remove = {});
 };
 
 // 组件检查器管理器:注册了自定义 UI 的组件用自定义 UI,其余组件按反射元数据自动绘制。
@@ -22,7 +23,7 @@ class ComponentUIManager {
 public:
     ComponentUIManager();
 
-    void renderComponent(Component* component);
+    void renderComponent(Component* component, const std::function<void()>& on_remove = {});
 
     // 视图缓存以裸 Component 指针为键;所属场景卸载时必须丢弃。
     void clearViewCache() { component_view_cache_.clear(); }
@@ -31,18 +32,19 @@ public:
     template <class ComponentCls>
     void registerComponentUI() {
         auto ui = std::make_shared<ComponentUI<ComponentCls>>();
-        ui_renderers_[ComponentCls::GetClassName()] = [this, ui](Component* component) {
-            auto& view = component_view_cache_[component];
-            if (!view) {
-                view = std::make_shared<ComponentView<ComponentCls>>(*static_cast<ComponentCls*>(component));
-            }
-            ui->render(*static_cast<ComponentView<ComponentCls>*>(view.get()));
-        };
+        ui_renderers_[ComponentCls::GetClassName()] =
+            [this, ui](Component* component, const std::function<void()>& on_remove) {
+                auto& view = component_view_cache_[component];
+                if (!view) {
+                    view = std::make_shared<ComponentView<ComponentCls>>(*static_cast<ComponentCls*>(component));
+                }
+                ui->render(*static_cast<ComponentView<ComponentCls>*>(view.get()), on_remove);
+            };
     }
 
 private:
-
-    std::map<std::string, std::function<void(Component*)>> ui_renderers_;
+    // 按组件类名索引的类型擦除渲染器,携带移除回调。
+    std::map<std::string, std::function<void(Component*, const std::function<void()>&)>> ui_renderers_;
     std::map<Component*, std::shared_ptr<void>> component_view_cache_;
 };
 

@@ -3,6 +3,7 @@
 #include "ui/undo.hpp"
 #include "ui/widgets.hpp"
 #include "ui/editor_scene.hpp"
+#include "ui/prefab_actions.hpp"
 #include "engine/global_context.hpp"
 #include "function/framework/component/transform/transform_component.hpp"
 #include <glm/gtc/type_ptr.hpp>
@@ -72,6 +73,20 @@ void ViewportPanel::render() {
                         on_select_game_object_(game_object->getUUID());
                     }
                     pushGameObjectCreated(game_object);
+                }
+            }
+            if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(kPrefabDragDropPayload)) {
+                std::filesystem::path file(std::string(static_cast<const char*>(payload->Data), payload->DataSize - 1));
+                auto prefabs_dir = std::filesystem::path(global_context->asset_system->getRootDir()) / "prefabs";
+                std::error_code ec;
+                auto relative = std::filesystem::relative(file, prefabs_dir, ec);
+                if (!ec) {
+                    if (auto* game_object = instantiatePrefab(relative.generic_string())) {
+                        if (on_select_game_object_) {
+                            on_select_game_object_(game_object->getUUID());
+                        }
+                        pushGameObjectCreated(game_object);
+                    }
                 }
             }
             ImGui::EndDragDropTarget();

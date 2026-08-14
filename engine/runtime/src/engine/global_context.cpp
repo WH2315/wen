@@ -17,7 +17,11 @@ void GlobalContext::startup() {
     game_object_uuid_allocator.initialize();
     component_type_uuid_system.initialize();
     asset_system.initialize();
+    asset_system->setRootDir("engine/assets");
     camera_system.initialize();
+    light_system.initialize();
+    environment_system.initialize();
+    script_registry.initialize();
     scene_manager.initialize();
     render_system->createRenderer();
 }
@@ -26,6 +30,9 @@ void GlobalContext::shutdown() {
     render_system->waitIdle();
     scene_manager.destroy();
     camera_system.destroy();
+    light_system.destroy();
+    environment_system.destroy();
+    script_registry.destroy();
     asset_system.destroy();
     component_type_uuid_system.destroy();
     game_object_uuid_allocator.destroy();

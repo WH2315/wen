@@ -17,10 +17,21 @@ enum class Mode {
 
 inline constexpr GameObjectUUID kInvalidGameObjectUUID = GameObjectUUID(-1);
 
+// Prefab 实例操作(面板发起,Editor 主循环在 ImGui 帧外执行 —— 因为 revert 会销毁重建对象,
+// 帧内执行会让正在渲染该对象的面板持悬空指针而崩溃)。
+enum class PrefabActionKind : int { eNone = 0, eRevert, eApply };
+
+struct PendingPrefabAction {
+    PrefabActionKind kind = PrefabActionKind::eNone;
+    GameObjectUUID uuid = kInvalidGameObjectUUID;
+};
+
 // 编辑器的全局共享状态(由 UI 持有)。面板/服务直接读写它,不另设访问层。
 struct UIContext {
     Mode mode{Mode::eEdit};
     std::function<void(Mode mode)> change_mode_callback;
+    // 在 Content Browser 中定位资源(Inspector 对象字段"揭示"用)。
+    std::function<void(const std::filesystem::path&)> reveal_asset_callback;
 
     // 选中对象
     GameObjectUUID selected_game_object_uuid{kInvalidGameObjectUUID};
@@ -47,6 +58,9 @@ struct UIContext {
 
     // 场景文件操作(菜单/浏览器发起,Editor 帧外执行)
     SceneFileActions scene_file_actions;
+
+    // Prefab 实例操作(Inspector 发起,Editor 帧外执行)
+    PendingPrefabAction pending_prefab;
 
     // 文件浏览器对话框(由 UI 持有)
     FileDialog* file_dialog{nullptr};

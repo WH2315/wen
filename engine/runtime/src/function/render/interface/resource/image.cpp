@@ -257,6 +257,47 @@ StorageImage::~StorageImage() {
     image_.reset();
 };
 
+CubeTexture::CubeTexture(uint32_t size, uint32_t mip_levels, vk::Format format, vk::ImageUsageFlags extra_usage) : mip_levels_(mip_levels) {
+    image_ = std::make_unique<Image>(
+        size, size, format,
+        extra_usage | vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst,
+        vk::SampleCountFlagBits::e1,
+        VMA_MEMORY_USAGE_GPU_ONLY,
+        VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT,
+        mip_levels,
+        6,  // 6 层 = 立方体 6 个面
+        vk::ImageCreateFlagBits::eCubeCompatible
+    );
+    cube_view_ = createImageView(
+        image_->image,
+        format,
+        vk::ImageAspectFlagBits::eColor,
+        mip_levels,
+        6,
+        vk::ImageViewType::eCube
+    );
+
+    // 每个 mip 一个 2D array 视图,供计算着色器写指定层(面)。
+    vk::ImageViewCreateInfo view_ci;
+    view_ci.setImage(image_->image)
+        .setFormat(format)
+        .setViewType(vk::ImageViewType::e2DArray)
+        .setComponents({vk::ComponentSwizzle::eR, vk::ComponentSwizzle::eG, vk::ComponentSwizzle::eB, vk::ComponentSwizzle::eA})
+        .setSubresourceRange({vk::ImageAspectFlagBits::eColor, 0, 1, 0, 6});
+    for (uint32_t mip = 0; mip < mip_levels; mip++) {
+        view_ci.subresourceRange.setBaseMipLevel(mip);
+        array_views_.push_back(manager->device->device.createImageView(view_ci));
+    }
+}
+
+CubeTexture::~CubeTexture() {
+    for (auto view : array_views_) {
+        manager->device->device.destroyImageView(view);
+    }
+    manager->device->device.destroyImageView(cube_view_);
+    image_.reset();
+};
+
 DepthImage::DepthImage(uint32_t width, uint32_t height, vk::Format format, vk::ImageUsageFlags usage, uint32_t mip_levels) : mip_levels_(mip_levels) {
     image_ = std::make_unique<Image>(
         width, height, format, usage,

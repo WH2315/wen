@@ -18,6 +18,9 @@ private:
     std::shared_ptr<Renderer::Sampler> visibility_sampler_;
     std::shared_ptr<Renderer::GraphicsShaderProgram> mesh_shader_program_;
     std::shared_ptr<Renderer::GraphicsRenderPipeline> mesh_pipeline_pipeline_;
+    std::shared_ptr<Renderer::PushConstants> push_constants_;  // LOD 调试开关等
+
+    uint32_t last_bound_texture_count_ = 0;  // 最近一次绑定时的纹理池大小
 };
 
 }  // namespace wen

@@ -1,22 +1,35 @@
 #include "ui/component_ui/component_ui_manager.hpp"
 #include "ui/component_ui/perspective_camera_component_ui.hpp"
+#include "ui/component_ui/mesh_component_ui.hpp"
+#include "ui/component_ui/material_component_ui.hpp"
+#include "ui/component_ui/script_component_ui.hpp"
 #include "ui/undo.hpp"
 
 namespace wen::editor {
 
 ComponentUIManager::ComponentUIManager() {
     registerComponentUI<PerspectiveCameraComponent>();
+    registerComponentUI<MeshComponent>();
+    registerComponentUI<MaterialComponent>();
+    registerComponentUI<ScriptComponent>();
 }
 
-void ComponentUIManager::renderComponent(Component* component) {
+void ComponentUIManager::renderComponent(Component* component, const std::function<void()>& on_remove) {
     // 注册过自定义 UI 的组件用自定义 UI,否则按反射元数据通用绘制。
     if (auto iter = ui_renderers_.find(component->getClassName()); iter != ui_renderers_.end()) {
-        iter->second(component);
+        iter->second(component, on_remove);
         return;
     }
 
     ImGui::PushID(static_cast<const void*>(component));
-    if (ImGui::TreeNodeEx(component->getClassName().c_str(), ImGuiTreeNodeFlags_DefaultOpen)) {
+    bool open = ImGui::TreeNodeEx(component->getClassName().c_str(), ImGuiTreeNodeFlags_DefaultOpen);
+    if (on_remove) {
+        ImGui::SameLine();
+        if (ImGui::SmallButton("Remove")) {
+            on_remove();
+        }
+    }
+    if (open) {
         const auto& descriptor = global_context->reflect_system->getClass(component->getClassName());
         bool changed = false;
         for (const auto& member_name : descriptor.getMemberNames()) {

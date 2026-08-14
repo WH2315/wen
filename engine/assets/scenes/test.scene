@@ -1,0 +1,332 @@
+{
+  "game_objects": [
+    {
+      "components": [
+        {
+          "class": "TransformComponent",
+          "members": {
+            "location": [
+              0.7088267207145691,
+              0.15906038880348206,
+              -7.1342878341674805
+            ],
+            "rotation": [
+              0.0,
+              -0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          }
+        },
+        {
+          "class": "PerspectiveCameraComponent",
+          "members": {
+            "far": 1000.0,
+            "fov": 60.0,
+            "near": 0.10000000149011612
+          }
+        },
+        {
+          "class": "CameraControllerComponent",
+          "members": {
+            "sensitivity": 10.0,
+            "speed": 10.0
+          }
+        }
+      ],
+      "name": "Main Camera"
+    },
+    {
+      "components": [
+        {
+          "class": "TransformComponent",
+          "members": {
+            "location": [
+              0.0,
+              1.143456220626831,
+              0.0
+            ],
+            "rotation": [
+              0.0,
+              -0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          }
+        },
+        {
+          "class": "DirectionalLightComponent",
+          "members": {
+            "color": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "direction": [
+              0.0,
+              -1.0,
+              0.0
+            ],
+            "intensity": 1.0
+          }
+        }
+      ],
+      "name": "Directional Light"
+    },
+    {
+      "components": [
+        {
+          "class": "TransformComponent",
+          "members": {
+            "location": [
+              0.8247889280319214,
+              1.3636493682861328,
+              -2.0
+            ],
+            "rotation": [
+              0.0,
+              -0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          }
+        },
+        {
+          "class": "MeshComponent",
+          "members": {
+            "mesh_path": "ray_tracing/sphere.obj"
+          }
+        },
+        {
+          "class": "MaterialComponent",
+          "members": {
+            "base_color": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "metallic": 1.0,
+            "roughness": 0.0,
+            "texture_path": ""
+          }
+        },
+        {
+          "class": "ScriptComponent",
+          "members": {
+            "script_name": "bob.lua",
+            "script_type": "Lua"
+          },
+          "script_fields": {
+            "amplitude": 1.0,
+            "frequency": 2.0
+          }
+        }
+      ],
+      "name": "sphere"
+    },
+    {
+      "components": [
+        {
+          "class": "TransformComponent",
+          "members": {
+            "location": [
+              0.0,
+              -1.580130934715271,
+              -2.0
+            ],
+            "rotation": [
+              0.0,
+              -0.0,
+              0.0
+            ],
+            "scale": [
+              1.5,
+              1.5,
+              1.5
+            ]
+          }
+        },
+        {
+          "class": "MeshComponent",
+          "members": {
+            "mesh_path": "ray_tracing/plane.obj"
+          }
+        },
+        {
+          "class": "MaterialComponent",
+          "members": {
+            "base_color": [
+              0.2536023259162903,
+              0.2536023259162903,
+              0.2536023259162903
+            ],
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "texture_path": ""
+          }
+        }
+      ],
+      "name": "plane"
+    },
+    {
+      "components": [
+        {
+          "class": "TransformComponent",
+          "members": {
+            "location": [
+              1.5289480686187744,
+              -1.0457502603530884,
+              -3.493717670440674
+            ],
+            "rotation": [
+              -179.99989318847656,
+              -0.43657946586608887,
+              179.99989318847656
+            ],
+            "scale": [
+              0.9999821782112122,
+              1.0,
+              0.9999821782112122
+            ]
+          }
+        },
+        {
+          "class": "MeshComponent",
+          "members": {
+            "mesh_path": "bunny.obj"
+          }
+        },
+        {
+          "class": "MaterialComponent",
+          "members": {
+            "base_color": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "metallic": 0.7900000214576721,
+            "roughness": 0.38999998569488525,
+            "texture_path": ""
+          }
+        }
+      ],
+      "name": "bunny"
+    },
+    {
+      "components": [
+        {
+          "class": "TransformComponent",
+          "members": {
+            "location": [
+              -1.9311130046844482,
+              0.7191920876502991,
+              -2.0
+            ],
+            "rotation": [
+              0.0,
+              -0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          }
+        },
+        {
+          "class": "MaterialComponent",
+          "members": {
+            "base_color": [
+              0.8242075443267822,
+              1.0,
+              0.0
+            ],
+            "metallic": 0.0,
+            "roughness": 1.0,
+            "texture_path": ""
+          }
+        },
+        {
+          "class": "MeshComponent",
+          "members": {
+            "mesh_path": "ray_tracing/cube.obj"
+          }
+        },
+        {
+          "class": "ScriptComponent",
+          "members": {
+            "script_name": "RotateScript",
+            "script_type": "Native"
+          },
+          "script_fields": {
+            "axis": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "speed": 90.0
+          }
+        }
+      ],
+      "name": "cube"
+    },
+    {
+      "components": [
+        {
+          "class": "TransformComponent",
+          "members": {
+            "location": [
+              5.2784295082092285,
+              0.5912718772888184,
+              -0.574373722076416
+            ],
+            "rotation": [
+              -179.99949645996094,
+              -8.973912239074707,
+              -179.99989318847656
+            ],
+            "scale": [
+              1.999981164932251,
+              2.0,
+              1.999981164932251
+            ]
+          }
+        },
+        {
+          "class": "MeshComponent",
+          "members": {
+            "mesh_path": "ray_tracing/sphere.obj"
+          }
+        },
+        {
+          "class": "MaterialComponent",
+          "members": {
+            "base_color": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "metallic": 0.0,
+            "roughness": 1.0,
+            "texture_path": "earth.jpg"
+          }
+        }
+      ],
+      "name": "earth"
+    }
+  ],
+  "scene": "test"
+}

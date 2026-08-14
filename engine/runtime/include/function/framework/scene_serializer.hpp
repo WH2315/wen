@@ -15,7 +15,9 @@ public:
     static std::string saveToString(Scene* scene);
     static Scene* loadFromString(const std::string& text);
 
-    static std::string serializeGameObject(GameObject* game_object);
+    // 单对象序列化;exclude_class 非空时跳过该类组件(如 prefab 模板排除 PrefabComponent)。
+    static std::string serializeGameObject(GameObject* game_object,
+                                           const std::string& exclude_class = "");
     static GameObject* deserializeGameObject(Scene* scene, const std::string& text, GameObjectUUID uuid);
 };
 

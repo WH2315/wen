@@ -13,6 +13,9 @@ public:
 
     static void registerIniSettings();
 
+    // 定位到资源所在目录并高亮(Inspector 对象字段"揭示"用)。
+    void revealAsset(const std::filesystem::path& file);
+
     void setOnSelectGameObject(const std::function<void(GameObjectUUID uuid)>& callback) {
         on_select_game_object_ = callback;
     }
@@ -30,8 +33,9 @@ private:
     void renderTiles(const std::vector<Entry>& entries);
     void renderList(const std::vector<Entry>& entries);
     void renderStatusBar();
-    void handleItemInteractions(const Entry& entry, bool is_mesh, const std::string& name);
+    void handleItemInteractions(const Entry& entry, bool is_mesh, bool is_prefab, const std::string& name);
     void addMeshToScene(const std::filesystem::path& file);
+    void addPrefabToScene(const std::filesystem::path& file);
     std::string displayPath(const std::filesystem::path& dir) const;
 
     static constexpr float kMinTileSize = 48.0f;

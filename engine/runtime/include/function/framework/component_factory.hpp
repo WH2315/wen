@@ -2,6 +2,7 @@
 
 #include "core/base/singleton.hpp"
 #include "function/framework/component.hpp"
+#include <vector>
 
 namespace wen {
 
@@ -30,6 +31,16 @@ public:
 
     bool contains(const std::string& class_name) const {
         return factories_.find(class_name) != factories_.end();
+    }
+
+    // 所有已注册组件类名(编辑器"Add Component"列表用)。
+    std::vector<std::string> classNames() const {
+        std::vector<std::string> out;
+        out.reserve(factories_.size());
+        for (const auto& [class_name, _] : factories_) {
+            out.push_back(class_name);
+        }
+        return out;
     }
 
 private:

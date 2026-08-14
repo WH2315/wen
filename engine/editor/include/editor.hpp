@@ -17,8 +17,14 @@ public:
     void destroy();
 
 private:
+    // 启动时创建未保存的默认场景(Main Camera + Directional Light)。
+    void createDefaultScene();
+    // 往场景里放入默认对象(Main Camera + Directional Light),启动与新建共用。
+    void createDefaultSceneObjects(class Scene* scene);
     // 执行菜单/浏览器请求的场景文件操作(New/Open/Save/SaveAs)。
     void processSceneFileAction();
+    // 执行面板请求的 Prefab 实例操作(Revert/Apply,帧外,因 Revert 会销毁重建对象)。
+    void processPrefabAction();
     // Stop 时还原进入 Play 前的场景快照。
     void processPlayModeRestore();
 

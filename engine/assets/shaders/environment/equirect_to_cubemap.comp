@@ -1,0 +1,29 @@
+#version 450
+
+#extension GL_GOOGLE_include_directive : require
+
+#include "common.glsl"
+
+// 等距柱状(equirectangular)HDR 贴图 -> 环境立方体贴图。
+layout(local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
+
+layout(binding = 0) uniform sampler2D equirect_tex;
+layout(rgba32f, binding = 1) uniform writeonly image2DArray env_cubemap;
+
+void main() {
+    ivec3 gid = ivec3(gl_GlobalInvocationID);
+    ivec3 dim = imageSize(env_cubemap);
+    if (gid.x >= dim.x || gid.y >= dim.y || gid.z >= 6) {
+        return;
+    }
+    vec2 uv = (vec2(gid.xy) + 0.5) / vec2(dim.xy);
+    // cube_dir 返回未归一化方向(主轴=1);采样等距柱状前必须归一化,
+    // 否则 +Y 面 dir.y 恒为 1 -> 整个面都采样天顶行(纯色"方帽",天空盒呈立方体)。
+    vec3 dir = normalize(cube_dir(gid.z, uv));
+
+    // 方向 -> 等距柱状 uv(v=0 在图像顶部 = +Y 北极)。
+    float u = atan(dir.x, dir.z) / (2.0 * PI) + 0.5;
+    float v = acos(clamp(dir.y, -1.0, 1.0)) / PI;
+    vec3 color = texture(equirect_tex, vec2(u, v)).rgb;
+    imageStore(env_cubemap, gid, vec4(color, 1.0));
+}
