@@ -50,6 +50,7 @@ void Engine::prepareTimer() {
         while (!global_context->window_system->shouldClose()) {
             if ((!fixed_timer_->stopped()) && (!main_timer_->stopped())) {
                 global_context->scene_manager->fixedTick();
+                global_context->physics_system->fixedTick();
             }
             constexpr float fixed_tick_delta_time = 1.0 / 30.0;
             fixed_timer_->tick(std::chrono::milliseconds(static_cast<int>(fixed_tick_delta_time * 1000)));
@@ -58,6 +59,7 @@ void Engine::prepareTimer() {
 }
 
 void Engine::startTimer() {
+    global_context->physics_system->beginPlay();
     global_context->scene_manager->start();
 
     main_timer_->reset();
@@ -69,6 +71,7 @@ void Engine::startTimer() {
 void Engine::stopTimer() {
     main_timer_->stop();
     fixed_timer_->stop();
+    global_context->physics_system->endPlay();
 }
 
 void Engine::tickLogic() {
@@ -84,8 +87,9 @@ void Engine::tickLogic() {
 }
 
 void Engine::tickRender() {
+    global_context->physics_system->applyPendingResults();
     benchmark_timer_->tick();
-    global_context->render_system->render(); 
+    global_context->render_system->render();
     float benchmark_dt = benchmark_timer_->tick();
     // WEN_CORE_DEBUG("BENCHMARK: Render CPU Delta Time(ms): {}", benchmark_dt * 1000)
     delta_time_ = main_timer_->tick();

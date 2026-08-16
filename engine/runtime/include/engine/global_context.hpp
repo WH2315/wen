@@ -14,6 +14,7 @@
 #include "function/light/light_system.hpp"
 #include "function/environment/environment_system.hpp"
 #include "function/script/script_registry.hpp"
+#include "function/physics/physics_system.hpp"
 #include "function/framework/scene_manager.hpp"
 
 namespace wen {
@@ -37,6 +38,7 @@ struct GlobalContext {
     Singleton<LightSystem> light_system;
     Singleton<EnvironmentSystem> environment_system;
     Singleton<ScriptRegistry> script_registry;
+    Singleton<PhysicsSystem> physics_system;
     Singleton<SceneManager> scene_manager;
 };
 

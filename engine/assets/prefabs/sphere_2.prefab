@@ -1,0 +1,1 @@
+{"components":[{"class":"TransformComponent","members":{"location":[0.0,0.0,-2.0],"rotation":[0.0,0.0,0.0],"scale":[1.0,1.0,1.0]}},{"class":"MeshComponent","members":{"mesh_path":"ray_tracing/sphere.obj"}},{"class":"MaterialComponent","members":{"base_color":[1.0,0.0,0.0],"metallic":0.0,"roughness":0.5,"texture_path":""}}],"name":"sphere"}

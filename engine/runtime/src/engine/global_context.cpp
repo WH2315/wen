@@ -22,6 +22,7 @@ void GlobalContext::startup() {
     light_system.initialize();
     environment_system.initialize();
     script_registry.initialize();
+    physics_system.initialize();
     scene_manager.initialize();
     render_system->createRenderer();
 }
@@ -29,6 +30,7 @@ void GlobalContext::startup() {
 void GlobalContext::shutdown() {
     render_system->waitIdle();
     scene_manager.destroy();
+    physics_system.destroy();
     camera_system.destroy();
     light_system.destroy();
     environment_system.destroy();

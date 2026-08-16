@@ -19,6 +19,7 @@ private:
     void renderToolbar(const ImVec2& image_pos);
     void handleToolShortcuts();
     void renderGizmo(const ImVec2& image_pos, const ImVec2& image_size);
+    void renderColliderWireframe(const ImVec2& image_pos, const ImVec2& image_size);
     void handlePicking(const ImVec2& image_pos, const ImVec2& image_size);
 
     std::function<void(GameObjectUUID uuid)> on_select_game_object_;

@@ -7,18 +7,18 @@
           "members": {
             "location": [
               0.7088267207145691,
-              0.15906038880348206,
-              -7.1342878341674805
+              0.9081377387046814,
+              -13.499822616577148
             ],
             "rotation": [
               0.0,
-              -0.0,
+              28.651939392089844,
               0.0
             ],
             "scale": [
+              0.9999992847442627,
               1.0,
-              1.0,
-              1.0
+              0.9999992847442627
             ]
           }
         },
@@ -135,50 +135,6 @@
         }
       ],
       "name": "sphere"
-    },
-    {
-      "components": [
-        {
-          "class": "TransformComponent",
-          "members": {
-            "location": [
-              0.0,
-              -1.580130934715271,
-              -2.0
-            ],
-            "rotation": [
-              0.0,
-              -0.0,
-              0.0
-            ],
-            "scale": [
-              1.5,
-              1.5,
-              1.5
-            ]
-          }
-        },
-        {
-          "class": "MeshComponent",
-          "members": {
-            "mesh_path": "ray_tracing/plane.obj"
-          }
-        },
-        {
-          "class": "MaterialComponent",
-          "members": {
-            "base_color": [
-              0.2536023259162903,
-              0.2536023259162903,
-              0.2536023259162903
-            ],
-            "metallic": 0.0,
-            "roughness": 0.5,
-            "texture_path": ""
-          }
-        }
-      ],
-      "name": "plane"
     },
     {
       "components": [
@@ -326,6 +282,251 @@
         }
       ],
       "name": "earth"
+    },
+    {
+      "components": [
+        {
+          "class": "TransformComponent",
+          "members": {
+            "location": [
+              8.987671852111816,
+              0.20114564895629883,
+              -7.7714643478393555
+            ],
+            "rotation": [
+              -14.589040756225586,
+              -18.85215187072754,
+              50.609962463378906
+            ],
+            "scale": [
+              4.999991416931152,
+              0.0010000003967434168,
+              3.700000047683716
+            ]
+          }
+        },
+        {
+          "class": "MeshComponent",
+          "members": {
+            "mesh_path": "ray_tracing/cube.obj"
+          }
+        },
+        {
+          "class": "ColliderComponent",
+          "members": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "half_extents": [
+              0.5,
+              0.5,
+              0.5
+            ],
+            "height": 2.0,
+            "is_trigger": false,
+            "radius": 0.5,
+            "shape_type": 0
+          }
+        },
+        {
+          "class": "RigidbodyComponent",
+          "members": {
+            "angular_damping": 0.05000000074505806,
+            "angular_velocity": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "body_type": 0,
+            "friction": 0.5,
+            "gravity_scale": 1.0,
+            "linear_damping": 0.05000000074505806,
+            "linear_velocity": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "mass": 1.0,
+            "restitution": 0.0,
+            "use_ccd": false
+          }
+        },
+        {
+          "class": "MaterialComponent",
+          "members": {
+            "base_color": [
+              0.0,
+              0.9567725658416748,
+              1.0
+            ],
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "texture_path": ""
+          }
+        }
+      ],
+      "name": "cube"
+    },
+    {
+      "components": [
+        {
+          "class": "TransformComponent",
+          "members": {
+            "location": [
+              8.774587631225586,
+              1.913711428642273,
+              -7.671262741088867
+            ],
+            "rotation": [
+              0.0,
+              -0.0,
+              0.0
+            ],
+            "scale": [
+              0.5,
+              0.5,
+              0.5
+            ]
+          }
+        },
+        {
+          "class": "MeshComponent",
+          "members": {
+            "mesh_path": "ray_tracing/sphere.obj"
+          }
+        },
+        {
+          "class": "ColliderComponent",
+          "members": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "half_extents": [
+              0.5,
+              0.5,
+              0.5
+            ],
+            "height": 2.0,
+            "is_trigger": false,
+            "radius": 1.0,
+            "shape_type": 1
+          }
+        },
+        {
+          "class": "RigidbodyComponent",
+          "members": {
+            "angular_damping": 0.05000000074505806,
+            "angular_velocity": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "body_type": 1,
+            "friction": 0.5,
+            "gravity_scale": 1.0,
+            "linear_damping": 0.05000000074505806,
+            "linear_velocity": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "mass": 1.0,
+            "restitution": 0.0,
+            "use_ccd": false
+          }
+        }
+      ],
+      "name": "sphere"
+    },
+    {
+      "components": [
+        {
+          "class": "TransformComponent",
+          "members": {
+            "location": [
+              4.239428520202637,
+              -2.60256290435791,
+              -7.7714643478393555
+            ],
+            "rotation": [
+              0.0,
+              -0.0,
+              0.0
+            ],
+            "scale": [
+              25.600000381469727,
+              0.0010000003967434168,
+              18.799999237060547
+            ]
+          }
+        },
+        {
+          "class": "MeshComponent",
+          "members": {
+            "mesh_path": "ray_tracing/cube.obj"
+          }
+        },
+        {
+          "class": "ColliderComponent",
+          "members": {
+            "center": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "half_extents": [
+              0.5,
+              0.5,
+              0.5
+            ],
+            "height": 2.0,
+            "is_trigger": false,
+            "radius": 0.5,
+            "shape_type": 0
+          }
+        },
+        {
+          "class": "RigidbodyComponent",
+          "members": {
+            "angular_damping": 0.05000000074505806,
+            "angular_velocity": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "body_type": 0,
+            "friction": 0.5,
+            "gravity_scale": 1.0,
+            "linear_damping": 0.05000000074505806,
+            "linear_velocity": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "mass": 1.0,
+            "restitution": 0.0,
+            "use_ccd": false
+          }
+        },
+        {
+          "class": "MaterialComponent",
+          "members": {
+            "base_color": [
+              0.16426515579223633,
+              0.16426515579223633,
+              0.16426515579223633
+            ],
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "texture_path": ""
+          }
+        }
+      ],
+      "name": "cube (copy)"
     }
   ],
   "scene": "test"

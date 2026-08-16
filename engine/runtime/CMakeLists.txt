@@ -26,6 +26,7 @@ target_link_libraries(${TARGET_NAME} PUBLIC
     tinygltf
     imgui
     lua
+    jolt
 )
 target_link_libraries(${TARGET_NAME} PRIVATE
     glslang glslang::SPIRV glslang::glslang-default-resource-limits
