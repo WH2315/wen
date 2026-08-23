@@ -138,16 +138,17 @@ void UI::handleFocusShortcut() {
         return;
     }
 
-    glm::vec3 center = transform->location;
+    glm::vec3 center = transform->getWorldLocation();
     float radius = 1.0f;
     if (auto* mesh = game_object->queryComponent<MeshComponent>()) {
         const auto& descriptor = global_context->asset_system->getMeshPool()->mesh_descriptor_buffer_ptr[mesh->mesh_id];
-        // 包围盒中心经模型矩阵变换到世界空间,半径按最大缩放修正。
+        // 包围盒中心经世界模型矩阵变换到世界空间,半径按最大世界缩放修正。
         glm::vec3 local_center = (descriptor.aabb_min + descriptor.aabb_max) * 0.5f;
-        center = transform->location + math::composeModel(transform->rotation, transform->scale) * local_center;
-        float max_scale = std::max({std::abs(transform->scale.x),
-                                    std::abs(transform->scale.y),
-                                    std::abs(transform->scale.z)});
+        center = glm::vec3(transform->getWorldMatrix() * glm::vec4(local_center, 1.0f));
+        glm::vec3 world_scale = transform->getWorldScale();
+        float max_scale = std::max({std::abs(world_scale.x),
+                                    std::abs(world_scale.y),
+                                    std::abs(world_scale.z)});
         radius = std::max(descriptor.radius * max_scale, 0.1f);
     }
 

@@ -5,6 +5,7 @@
 #include "engine/global_context.hpp"
 #include "function/framework/scene_manager.hpp"
 #include "function/framework/scene_serializer.hpp"
+#include "function/framework/component/transform/transform_component.hpp"
 #include "function/framework/component/script/script_component.hpp"
 #include "core/base/macro.hpp"
 
@@ -63,7 +64,7 @@ class GameObjectExistenceCommand final : public EditorCommand {
 public:
     GameObjectExistenceCommand(GameObject* game_object, bool created)
         : uuid_(game_object->getUUID()),
-          snapshot_(SceneSerializer::serializeGameObject(game_object)),
+          snapshot_(SceneSerializer::serializeGameObjectTree(game_object)),
           created_(created) {}
 
     void undo() override { created_ ? remove() : restore(); }
@@ -79,7 +80,7 @@ private:
             // 删除的是选中对象:先清选中与描边。
             setSelectedGameObject(kInvalidGameObjectUUID);
         }
-        removeGameObject(game_object);
+        removeGameObject(game_object);  // 级联删除整棵子树
         // 实例池交换删除会移动其他实例的池索引,重新解析描边。
         setSelectedGameObject(global_ui_context->selected_game_object_uuid);
     }
@@ -89,7 +90,7 @@ private:
         if (scene == nullptr || findGameObject(uuid_) != nullptr) {
             return;
         }
-        SceneSerializer::deserializeGameObject(scene, snapshot_, uuid_);
+        SceneSerializer::deserializeGameObjectTree(scene, snapshot_);
     }
 
     GameObjectUUID uuid_;
@@ -115,6 +116,40 @@ private:
     GameObjectUUID uuid_;
     std::string before_;
     std::string after_;
+};
+
+// 重设父子关系:记录前后父 uuid 与手时的世界矩阵。undo/redo 都恢复到同一
+// 世界位置(对象拖动时视觉不跳变),仅改变其所在的父节点。
+class ReparentCommand final : public EditorCommand {
+public:
+    ReparentCommand(GameObjectUUID uuid, GameObjectUUID before_parent, GameObjectUUID after_parent,
+                    glm::mat4 world_matrix)
+        : uuid_(uuid), before_parent_(before_parent), after_parent_(after_parent),
+          world_(world_matrix) {}
+
+    void undo() override { apply(before_parent_); }
+    void redo() override { apply(after_parent_); }
+
+private:
+    void apply(GameObjectUUID parent_uuid) {
+        auto* game_object = findGameObject(uuid_);
+        if (game_object == nullptr) {
+            return;
+        }
+        GameObject* parent = (parent_uuid == kInvalidGameObjectUUID)
+                                ? nullptr
+                                : findGameObject(parent_uuid);
+        game_object->setParent(parent);
+        if (auto* transform = game_object->queryComponent<TransformComponent>()) {
+            transform->setFromWorldMatrix(world_);
+            transform->propagateWorldChange();
+        }
+    }
+
+    GameObjectUUID uuid_;
+    GameObjectUUID before_parent_;
+    GameObjectUUID after_parent_;
+    glm::mat4 world_;
 };
 
 // 组件反射成员的快照(名称 -> 值),供组件增删撤销时恢复。
@@ -355,6 +390,14 @@ void pushGameObjectDeleted(GameObject* game_object) {
 void pushGameObjectRenamed(GameObjectUUID uuid, const std::string& before, const std::string& after) {
     if (global_undo_stack != nullptr) {
         global_undo_stack->push(std::make_unique<RenameCommand>(uuid, before, after));
+    }
+}
+
+void pushReparentGameObject(GameObjectUUID uuid, GameObjectUUID before_parent,
+                            GameObjectUUID after_parent, const glm::mat4& world_matrix) {
+    if (global_undo_stack != nullptr) {
+        global_undo_stack->push(
+            std::make_unique<ReparentCommand>(uuid, before_parent, after_parent, world_matrix));
     }
 }
 

@@ -59,6 +59,10 @@ void pushGameObjectDeleted(GameObject* game_object);
 
 void pushGameObjectRenamed(GameObjectUUID uuid, const std::string& before, const std::string& after);
 
+// 重设父子关系:记录前后父 uuid 与手时的世界矩阵,undo/redo 恢复到同一世界位置。
+void pushReparentGameObject(GameObjectUUID uuid, GameObjectUUID before_parent,
+                            GameObjectUUID after_parent, const glm::mat4& world_matrix);
+
 // 组件增删(Inspector):添加/移除组件可撤销,移除时快照成员、恢复时重放。
 void pushComponentAdded(GameObject* game_object, Component* component);
 void pushComponentRemoved(GameObject* game_object, Component* component);

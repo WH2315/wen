@@ -1,5 +1,6 @@
 #include "function/framework/game_object.hpp"
 #include "engine/global_context.hpp"
+#include <algorithm>
 
 namespace wen {
 
@@ -87,6 +88,51 @@ Component* GameObject::queryComponent(const std::string& class_name) {
         return component_map_.at(uuid);
     }
     return nullptr;
+}
+
+void GameObject::setParent(GameObject* new_parent) {
+    // 已满足目标关系则直接返回(同为 nullptr 或父相同)。
+    if (new_parent == parent_) {
+        return;
+    }
+    // 成环校验:不能设为自己、也不能设为自己的后代为父。
+    if (new_parent == this || (new_parent != nullptr && new_parent->isDescendantOf(this))) {
+        WEN_CORE_ERROR("GameObject \"{}\": cannot set parent (would create a cycle).", name_)
+        return;
+    }
+    removeFromParent();  // 先脱离当前父
+    parent_ = new_parent;
+    if (new_parent != nullptr) {
+        new_parent->children_.push_back(this);
+    }
+}
+
+void GameObject::removeFromParent() {
+    if (parent_ == nullptr) {
+        return;
+    }
+    auto& siblings = parent_->children_;
+    siblings.erase(std::remove(siblings.begin(), siblings.end(), this), siblings.end());
+    parent_ = nullptr;
+}
+
+bool GameObject::hasChild(GameObject* child) const {
+    if (child == nullptr) {
+        return false;
+    }
+    return std::find(children_.begin(), children_.end(), child) != children_.end();
+}
+
+bool GameObject::isDescendantOf(GameObject* ancestor) const {
+    if (ancestor == nullptr) {
+        return false;
+    }
+    for (auto* current = parent_; current != nullptr; current = current->parent_) {
+        if (current == ancestor) {
+            return true;
+        }
+    }
+    return false;
 }
 
 }  // namespace wen

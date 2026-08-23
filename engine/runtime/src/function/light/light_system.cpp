@@ -45,7 +45,7 @@ void LightSystem::uploadFrameData(uint32_t in_flight_index) {
         }
         glm::vec3 position(0.0f);
         if (auto* transform = go->queryComponent<TransformComponent>()) {
-            position = transform->location;
+            position = transform->getWorldLocation();
         }
         if (auto* light = go->queryComponent<DirectionalLightComponent>()) {
             buffer->lights[buffer->light_count++] = {

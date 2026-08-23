@@ -167,6 +167,7 @@ void ViewportPanel::renderGizmo(const ImVec2& image_pos, const ImVec2& image_siz
     }
 
     // 手势尚未开始时记录拖动起点,手势结束推一条撤销命令。
+    // 记录的是本地分量(restore 到本地),与新增的父子层级本地坐标语义一致。
     if (!gizmo_using_) {
         gizmo_start_location_ = transform->location;
         gizmo_start_rotation_ = transform->rotation;
@@ -179,12 +180,8 @@ void ViewportPanel::renderGizmo(const ImVec2& image_pos, const ImVec2& image_siz
     ImGuizmo::SetDrawlist();
     ImGuizmo::SetRect(image_pos.x, image_pos.y, image_size.x, image_size.y);
 
-    glm::mat4 matrix;
-    ImGuizmo::RecomposeMatrixFromComponents(
-        glm::value_ptr(transform->location),
-        glm::value_ptr(transform->rotation),
-        glm::value_ptr(transform->scale),
-        glm::value_ptr(matrix));
+    // 以"世界矩阵"喂给 ImGuizmo(无父时==本地矩阵),World/Local 模式由 ImGuizmo 基于该矩阵处理。
+    glm::mat4 matrix = transform->getWorldMatrix();
 
     // Ctrl 启用吸附:平移/缩放 0.5,旋转按 15° 步进。
     float snap_values[3] = {0.0f, 0.0f, 0.0f};
@@ -213,12 +210,10 @@ void ViewportPanel::renderGizmo(const ImVec2& image_pos, const ImVec2& image_siz
         nullptr,
         snap);
     if (ImGuizmo::IsUsing()) {
-        ImGuizmo::DecomposeMatrixToComponents(
-            glm::value_ptr(matrix),
-            &transform->location.x,
-            &transform->rotation.x,
-            &transform->scale.x);
-        transform->triggerMemberUpdateCallbacks();
+        // 把拖拽后的"目标世界矩阵"写回本地分量(有父时自动按父逆矩阵换算)。
+        transform->setFromWorldMatrix(matrix);
+        // 用脏传播:拖动父节点时同步刷新所有后代的世界变换。
+        transform->propagateWorldChange();
     }
 
     // 一次拖动手势结束 → 一条撤销命令(三个成员合并,一次 Ctrl+Z 撤销整个手势)。
@@ -281,9 +276,10 @@ void ViewportPanel::renderColliderWireframe(const ImVec2& image_pos, const ImVec
         }
     };
     // local -> world(旋转 + 平移;与 PhysicsSystem::buildShape 一致:尺寸含 scale,center 偏移不含)。
-    glm::mat3 R = math::composeRotation(transform->rotation);
-    glm::vec3 s = transform->scale;
-    auto toWorld = [&](const glm::vec3& local) { return transform->location + R * local; };
+    glm::vec3 world_location = transform->getWorldLocation();
+    glm::mat3 R = math::composeRotation(transform->getWorldRotation());
+    glm::vec3 s = transform->getWorldScale();
+    auto toWorld = [&](const glm::vec3& local) { return world_location + R * local; };
     auto worldPts = [&](const std::vector<glm::vec3>& local_pts) {
         std::vector<glm::vec3> out;
         out.reserve(local_pts.size());

@@ -45,8 +45,8 @@ protected:
         glm::vec3 location(0.0f);
         glm::vec3 rotation(0.0f);
         if (transform_component_ != nullptr) {
-            location = transform_component_->location;
-            rotation = transform_component_->rotation;
+            location = transform_component_->getWorldLocation();
+            rotation = transform_component_->getWorldRotation();
         }
         global_context->camera_system->reportCameraViewMatrix(
             camera_id,

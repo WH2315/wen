@@ -1,6 +1,9 @@
 #include "function/render/interface/resource/descriptor_set.hpp"
 #include "function/render/interface/context.hpp"
-#include <tiny_obj_loader.h>
+#include <assimp/Importer.hpp>
+#include <assimp/scene.h>
+#include <assimp/postprocess.h>
+#include <algorithm>
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/hash.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -29,62 +32,71 @@ Mesh::~Mesh() { indices.clear(); }
 
 NormalModel::NormalModel(const std::string& filename, const std::vector<std::string>& blacklist)
     : vertex_count(0), index_count(0) {
-    tinyobj::attrib_t attrib;
-    std::vector<tinyobj::shape_t> shapes;
-    std::vector<tinyobj::material_t> materials;
-    std::string warn, err;
-
-    if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, filename.c_str())) {
+    Assimp::Importer importer;
+    const aiScene* scene = importer.ReadFile(
+        filename,
+        aiProcess_Triangulate | aiProcess_GenSmoothNormals | aiProcess_GenUVCoords | aiProcess_JoinIdenticalVertices
+    );
+    if (scene == nullptr || scene->mRootNode == nullptr) {
         WEN_CORE_ERROR("Failed to load model: {0}", filename)
-        throw std::runtime_error(warn + err);
-    }
-
-    for (const auto& name : blacklist) {
-        auto it = shapes.begin();
-        while (it != shapes.end()) {
-            if (it->name == name) {
-                it = shapes.erase(it);
-                break;
-            }
-            ++it;
-        }
+        throw std::runtime_error(importer.GetErrorString());
     }
 
     uint32_t size = 0;
-    for (const auto& shape : shapes) {
-        size += shape.mesh.indices.size();
+    for (uint32_t i = 0; i < scene->mNumMeshes; i++) {
+        size += scene->mMeshes[i]->mNumFaces * 3;
     }
     vertices_.reserve(size);
 
     std::unordered_map<Vertex, uint32_t> unique_vertices = {};
     unique_vertices.reserve(size);
 
-    for (const auto& shape : shapes) {
-        std::unique_ptr<Mesh> mesh = std::make_unique<Mesh>();
-        for (const auto& index : shape.mesh.indices) {
-            Vertex vertex = {};
-            vertex.position = {attrib.vertices[3 * index.vertex_index + 0],
-                               attrib.vertices[3 * index.vertex_index + 1],
-                               attrib.vertices[3 * index.vertex_index + 2]};
-            if (index.normal_index < 0) {
-                vertex.normal = {0.0f, 0.0f, 0.0f};
-            } else {
-                vertex.normal = {attrib.normals[3 * index.normal_index + 0],
-                                 attrib.normals[3 * index.normal_index + 1],
-                                 attrib.normals[3 * index.normal_index + 2]};
-            }
-            vertex.color = {1.0f, 1.0f, 1.0f};
+    std::function<void(aiNode*)> processNode = [&](aiNode* node) {
+        for (uint32_t i = 0; i < node->mNumChildren; i++) {
+            processNode(node->mChildren[i]);
+        }
 
-            if (unique_vertices.count(vertex) == 0) {
-                unique_vertices.insert(std::make_pair(vertex, vertices_.size()));
-                vertices_.push_back(vertex);
+        auto name = std::string(node->mName.C_Str());
+        if (std::find(blacklist.begin(), blacklist.end(), name) != blacklist.end()) {
+            return;
+        }
+        if (node->mNumMeshes == 0) {
+            return;
+        }
+
+        std::unique_ptr<Mesh> mesh = std::make_unique<Mesh>();
+        for (uint32_t i = 0; i < node->mNumMeshes; i++) {
+            const aiMesh* ai_mesh = scene->mMeshes[node->mMeshes[i]];
+            for (uint32_t f = 0; f < ai_mesh->mNumFaces; f++) {
+                const aiFace& face = ai_mesh->mFaces[f];
+                for (uint32_t v = 0; v < face.mNumIndices; v++) {
+                    uint32_t index = face.mIndices[v];
+                    Vertex vertex = {};
+                    vertex.position = {ai_mesh->mVertices[index].x, ai_mesh->mVertices[index].y, ai_mesh->mVertices[index].z};
+                    if (ai_mesh->HasNormals()) {
+                        vertex.normal = {ai_mesh->mNormals[index].x, ai_mesh->mNormals[index].y, ai_mesh->mNormals[index].z};
+                    } else {
+                        vertex.normal = {0.0f, 0.0f, 0.0f};
+                    }
+                    vertex.color = {1.0f, 1.0f, 1.0f};
+
+                    if (unique_vertices.count(vertex) == 0) {
+                        unique_vertices.insert(std::make_pair(vertex, static_cast<uint32_t>(vertices_.size())));
+                        vertices_.push_back(vertex);
+                    }
+                    mesh->indices.push_back(unique_vertices[vertex]);
+                }
             }
-            mesh->indices.push_back(unique_vertices[vertex]);
+        }
+        if (mesh->indices.empty()) {
+            return;
         }
         index_count += mesh->indices.size();
-        meshes_.insert(std::make_pair(shape.name, std::move(mesh)));
-    }
-    vertex_count = vertices_.size();
+        meshes_.insert(std::make_pair(name, std::move(mesh)));
+    };
+    processNode(scene->mRootNode);
+
+    vertex_count = static_cast<uint32_t>(vertices_.size());
 }
 
 Offset NormalModel::upload(std::shared_ptr<VertexBuffer> vertex_buffer, std::shared_ptr<IndexBuffer> index_buffer, Offset offset) {

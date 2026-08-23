@@ -19,6 +19,11 @@ public:
     static std::string serializeGameObject(GameObject* game_object,
                                            const std::string& exclude_class = "");
     static GameObject* deserializeGameObject(Scene* scene, const std::string& text, GameObjectUUID uuid);
+
+    // 序列化对象及其整棵后代子树(供撤销跨子树删除/复制的恢复)。
+    static std::string serializeGameObjectTree(GameObject* game_object);
+    // 从子树快照恢复:按持久化 uuid 重建对象与父子关系。
+    static void deserializeGameObjectTree(Scene* scene, const std::string& text);
 };
 
 }  // namespace wen

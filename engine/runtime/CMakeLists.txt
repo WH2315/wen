@@ -14,8 +14,10 @@ target_include_directories(${TARGET_NAME} PUBLIC
     ./include
     ../../3rdlibs/stb
     ../../3rdlibs/VulkanMemoryAllocator
-    ../../3rdlibs/tinyobjloader
     ../../3rdlibs/tinygltf  # vendored nlohmann json.hpp (场景序列化)
+)
+target_include_directories(${TARGET_NAME} PRIVATE
+    ../../3rdlibs/assimp/include
 )
 target_link_libraries(${TARGET_NAME} PUBLIC
     spdlog
@@ -30,6 +32,6 @@ target_link_libraries(${TARGET_NAME} PUBLIC
 )
 target_link_libraries(${TARGET_NAME} PRIVATE
     glslang glslang::SPIRV glslang::glslang-default-resource-limits
-    tinyobjloader
+    assimp
 )
 target_precompile_headers(${TARGET_NAME} PUBLIC "include/pch.hpp")

@@ -5,9 +5,13 @@
 #include "ui/editor_scene.hpp"
 #include "ui/prefab_actions.hpp"
 #include "engine/global_context.hpp"
+#include "core/base/macro.hpp"
 #include "function/framework/scene_manager.hpp"
 #include "function/framework/game_object.hpp"
+#include "function/framework/component/transform/transform_component.hpp"
 #include <cstdio>
+#include <cstring>
+#include <functional>
 
 namespace wen::editor {
 
@@ -28,11 +32,17 @@ void HierarchyPanel::render() {
     auto* scene = global_context->scene_manager->getActiveScene();
     auto selected_uuid = global_ui_context->selected_game_object_uuid;
 
-    // 增删/复制/建 prefab 推迟到遍历结束后执行,避免在遍历 game_objects_ 时修改它。
+    // 增删/复制/建 prefab/建子对象/重设父推迟到遍历结束后执行,避免在遍历时修改树。
     GameObjectUUID pending_delete = kInvalidGameObjectUUID;
     GameObjectUUID pending_duplicate = kInvalidGameObjectUUID;
     GameObjectUUID pending_prefab = kInvalidGameObjectUUID;
+    GameObjectUUID pending_create_child = kInvalidGameObjectUUID;
     bool pending_create = false;
+    struct ReparentRequest {
+        GameObjectUUID child;
+        GameObjectUUID parent;
+    };
+    std::vector<ReparentRequest> pending_reparents;
 
     if (scene && ImGui::IsWindowFocused() && !ImGui::GetIO().WantTextInput &&
         selected_uuid != kInvalidGameObjectUUID) {
@@ -49,11 +59,13 @@ void HierarchyPanel::render() {
         }
     }
 
+    constexpr const char* kGoPayload = "WEN_GO_UUID";
+
     if (scene) {
-        for (auto* game_object : scene->getGameObjects()) {
+        // 递归绘制一个对象节点(含选中/内联重命名/右键菜单/拖拽源与拖放目标)。
+        std::function<void(GameObject*)> drawNode = [&](GameObject* game_object) {
             auto uuid = game_object->getUUID();
             bool selected = (selected_uuid == uuid);
-
             ImGui::PushID(static_cast<int>(uuid));
 
             if (renaming_uuid_ == uuid) {
@@ -77,7 +89,20 @@ void HierarchyPanel::render() {
                     renaming_uuid_ = kInvalidGameObjectUUID;
                 }
             } else {
-                if (ImGui::Selectable(game_object->getName().c_str(), selected)) {
+                bool leaf = game_object->getChildren().empty();
+                ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow |
+                                           ImGuiTreeNodeFlags_OpenOnDoubleClick |
+                                           ImGuiTreeNodeFlags_SpanAvailWidth;
+                if (selected) {
+                    flags |= ImGuiTreeNodeFlags_Selected;
+                }
+                if (leaf) {
+                    flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
+                }
+
+                bool open = ImGui::TreeNodeEx(game_object->getName().c_str(), flags);
+
+                if (ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen()) {
                     selectGameObject(selected ? kInvalidGameObjectUUID : uuid);
                 }
 
@@ -95,19 +120,71 @@ void HierarchyPanel::render() {
                     if (ImGui::MenuItem("Create Prefab")) {
                         pending_prefab = uuid;
                     }
+                    if (ImGui::MenuItem("Create Child")) {
+                        pending_create_child = uuid;
+                    }
+                    if (ImGui::MenuItem("Unparent", nullptr, false,
+                                       game_object->getParent() != nullptr)) {
+                        // 脱离父(设为根),保持世界位置不变。与拖到空白处同路径。
+                        pending_reparents.push_back({uuid, kInvalidGameObjectUUID});
+                    }
                     if (ImGui::MenuItem("Delete", "Del")) {
                         pending_delete = uuid;
                     }
-
                     ImGui::Separator();
                     if (ImGui::MenuItem("Create Empty")) {
                         pending_create = true;
                     }
                     ImGui::EndPopup();
                 }
+
+                // 拖拽源:拖动本对象。
+                if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID)) {
+                    ImGui::SetDragDropPayload(kGoPayload, &uuid, sizeof(uuid));
+                    ImGui::Text("%s", game_object->getName().c_str());
+                    ImGui::EndDragDropSource();
+                }
+                // 拖放目标:放到本对象行上 -> 成为其子对象。
+                if (ImGui::BeginDragDropTarget()) {
+                    if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(kGoPayload)) {
+                        if (payload->DataSize == sizeof(GameObjectUUID)) {
+                            GameObjectUUID dragged;
+                            std::memcpy(&dragged, payload->Data, sizeof(dragged));
+                            if (dragged != uuid) {
+                                pending_reparents.push_back({dragged, uuid});
+                            }
+                        }
+                    }
+                    ImGui::EndDragDropTarget();
+                }
+
+                if (!leaf && open) {
+                    for (auto* child : game_object->getChildren()) {
+                        drawNode(child);
+                    }
+                    ImGui::TreePop();
+                }
             }
 
             ImGui::PopID();
+        };
+
+        for (auto* game_object : scene->getGameObjects()) {
+            if (game_object->getParent() == nullptr) {
+                drawNode(game_object);
+            }
+        }
+
+        // 放到窗口空白处 -> 设为根(脱离父)。
+        if (ImGui::BeginDragDropTarget()) {
+            if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(kGoPayload)) {
+                if (payload->DataSize == sizeof(GameObjectUUID)) {
+                    GameObjectUUID dragged;
+                    std::memcpy(&dragged, payload->Data, sizeof(dragged));
+                    pending_reparents.push_back({dragged, kInvalidGameObjectUUID});
+                }
+            }
+            ImGui::EndDragDropTarget();
         }
 
         if (ImGui::BeginPopupContextWindow("##hierarchy_context",
@@ -131,6 +208,16 @@ void HierarchyPanel::render() {
             selectGameObject(game_object->getUUID());
             beginRename(game_object);
             pushGameObjectCreated(game_object);
+        }
+    }
+
+    if (pending_create_child != kInvalidGameObjectUUID) {
+        if (auto* parent = scene->getGameObject(pending_create_child)) {
+            if (auto* game_object = createChildGameObject(parent)) {
+                selectGameObject(game_object->getUUID());
+                beginRename(game_object);
+                pushGameObjectCreated(game_object);
+            }
         }
     }
 
@@ -163,6 +250,36 @@ void HierarchyPanel::render() {
 
             selectGameObject(global_ui_context->selected_game_object_uuid);
         }
+    }
+
+    // 重设父:保持世界位置不变,仅改变所在层级。
+    for (const auto& req : pending_reparents) {
+        auto* child = scene->getGameObject(req.child);
+        if (child == nullptr) {
+            continue;
+        }
+        GameObject* new_parent = (req.parent == kInvalidGameObjectUUID)
+                                     ? nullptr
+                                     : scene->getGameObject(req.parent);
+        if (new_parent == child || new_parent == child->getParent()) {
+            continue;
+        }
+        // 不能拖到自己的后代下(成环)。
+        if (new_parent != nullptr && new_parent->isDescendantOf(child)) {
+            WEN_CLIENT_INFO("Hierarchy: cannot reparent \"{}\" under its own descendant.", child->getName())
+            continue;
+        }
+        auto* transform = child->queryComponent<TransformComponent>();
+        if (transform == nullptr) {
+            continue;
+        }
+        glm::mat4 world = transform->getWorldMatrix();
+        auto before_parent = child->getParent() ? child->getParent()->getUUID() : kInvalidGameObjectUUID;
+        child->setParent(new_parent);
+        transform->setFromWorldMatrix(world);  // 保持世界位置
+        transform->propagateWorldChange();
+        pushReparentGameObject(child->getUUID(), before_parent,
+                               new_parent ? new_parent->getUUID() : kInvalidGameObjectUUID, world);
     }
 }
 

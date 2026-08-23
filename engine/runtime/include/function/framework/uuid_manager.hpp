@@ -15,6 +15,13 @@ class GameObjectUUIDAllocator final {
 public:
     GameObjectUUID allocate();
 
+    // 让分配器跳过已被场景反序列化占用的 uuid,避免后续 allocate() 撞号。
+    void reserve(GameObjectUUID uuid) {
+        if (uuid > current_uuid_) {
+            current_uuid_ = uuid;
+        }
+    }
+
 private:
     GameObjectUUID current_uuid_;
 };

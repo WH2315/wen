@@ -2,12 +2,14 @@
 #include "function/framework/game_object.hpp"
 #include "function/framework/component_factory.hpp"
 #include "function/framework/component/script/script_component.hpp"
+#include "function/framework/component/transform/transform_component.hpp"
 #include "function/script/script.hpp"
 #include "engine/global_context.hpp"
 #include "core/base/macro.hpp"
 #include <json.hpp>
 #include <type_traits>
 #include <fstream>
+#include <functional>
 
 namespace wen {
 
@@ -127,6 +129,12 @@ void deserializeMembers(Component* component, const ClassDescriptor& descriptor,
 json gameObjectToJson(GameObject* game_object, const std::string& exclude_class = "") {
     json object;
     object["name"] = game_object->getName();
+    // 持久化对象身份,供父关系等按 uuid 交叉引用。
+    object["uuid"] = game_object->getUUID();
+    // 序列化父关系:有父时写入父的 uuid(无父不写,保持向后兼容)。
+    if (auto* parent = game_object->getParent()) {
+        object["parent"] = parent->getUUID();
+    }
     json components = json::array();
     for (auto* component : game_object->getComponents()) {
         if (!exclude_class.empty() && component->getClassName() == exclude_class) {
@@ -221,9 +229,42 @@ Scene* sceneFromJson(const json& root, const std::string& fallback_name) {
         return nullptr;
     }
 
+    // 第一趟:创建全部对象并装配组件,同时记录父子关系(父 uuid)。
+    // 优先还原持久化的 uuid 以保证父关系/身份稳定,并让分配器跳过已占用 id。
+    std::vector<std::pair<GameObject*, GameObjectUUID>> parent_pairs;
     for (const auto& object_json : root.value("game_objects", json::array())) {
-        auto* game_object = scene->createGameObject(object_json.value("name", "GameObject"));
+        auto name = object_json.value("name", "GameObject");
+        GameObject* game_object = nullptr;
+        if (object_json.contains("uuid")) {
+            auto uuid = object_json["uuid"].get<GameObjectUUID>();
+            global_context->game_object_uuid_allocator->reserve(uuid);
+            game_object = scene->createGameObject(name, uuid);
+        } else {
+            game_object = scene->createGameObject(name);
+        }
+        if (game_object == nullptr) {
+            continue;
+        }
         populateGameObject(game_object, object_json);
+        if (object_json.contains("parent")) {
+            parent_pairs.emplace_back(game_object, object_json["parent"].get<GameObjectUUID>());
+        }
+    }
+    // 第二趟:按 uuid 建立父子关系(父必须先已创建)。
+    for (const auto& [game_object, parent_uuid] : parent_pairs) {
+        if (auto* parent = scene->getGameObject(parent_uuid)) {
+            game_object->setParent(parent);
+        } else {
+            WEN_CORE_WARN("SceneSerializer: parent uuid {} for \"{}\" not found.", parent_uuid, game_object->getName())
+        }
+    }
+    // 父关系就绪后,从每个根节点向下脏传播,把真实世界变换推送给渲染实例等。
+    for (auto* game_object : scene->getGameObjects()) {
+        if (game_object->getParent() == nullptr) {
+            if (auto* transform = game_object->queryComponent<TransformComponent>()) {
+                transform->propagateWorldChange();
+            }
+        }
     }
     return scene;
 }
@@ -308,7 +349,75 @@ GameObject* SceneSerializer::deserializeGameObject(Scene* scene, const std::stri
         return nullptr;
     }
     populateGameObject(game_object, object_json);
+    // 恢复父关系(undo/prefab 还原用;父须已存在于当前场景)。
+    if (object_json.contains("parent")) {
+        if (auto* parent = scene->getGameObject(object_json["parent"].get<GameObjectUUID>())) {
+            game_object->setParent(parent);
+        }
+    }
+    if (auto* transform = game_object->queryComponent<TransformComponent>()) {
+        transform->propagateWorldChange();
+    }
     return game_object;
+}
+
+std::string SceneSerializer::serializeGameObjectTree(GameObject* root) {
+    if (root == nullptr) {
+        return {};
+    }
+    json objects = json::array();
+    std::function<void(GameObject*)> collect = [&](GameObject* game_object) {
+        objects.push_back(gameObjectToJson(game_object));
+        for (auto* child : game_object->getChildren()) {
+            collect(child);
+        }
+    };
+    collect(root);
+    json r;
+    r["objects"] = std::move(objects);
+    return r.dump();
+}
+
+void SceneSerializer::deserializeGameObjectTree(Scene* scene, const std::string& text) {
+    if (scene == nullptr) {
+        return;
+    }
+    json root = json::parse(text, nullptr, false);
+    if (root.is_discarded()) {
+        WEN_CORE_ERROR("SceneSerializer: game object tree snapshot is not valid json.")
+        return;
+    }
+    // 第一趟:创建全部对象(按持久化 uuid)并装配组件,记录父子关系。
+    std::vector<std::pair<GameObject*, GameObjectUUID>> parent_pairs;
+    for (const auto& object_json : root.value("objects", json::array())) {
+        if (!object_json.contains("uuid")) {
+            continue;
+        }
+        auto uuid = object_json["uuid"].get<GameObjectUUID>();
+        global_context->game_object_uuid_allocator->reserve(uuid);
+        auto* game_object = scene->createGameObject(object_json.value("name", "GameObject"), uuid);
+        if (game_object == nullptr) {
+            continue;  // 已存在(如快照里含当前场景已有对象)
+        }
+        populateGameObject(game_object, object_json);
+        if (object_json.contains("parent")) {
+            parent_pairs.emplace_back(game_object, object_json["parent"].get<GameObjectUUID>());
+        }
+    }
+    // 第二趟:建立父子关系。
+    for (const auto& [game_object, parent_uuid] : parent_pairs) {
+        if (auto* parent = scene->getGameObject(parent_uuid)) {
+            game_object->setParent(parent);
+        }
+    }
+    // 关系就绪后从每个根节点向下脏传播,刷新世界变换。
+    for (auto* game_object : scene->getGameObjects()) {
+        if (game_object->getParent() == nullptr) {
+            if (auto* transform = game_object->queryComponent<TransformComponent>()) {
+                transform->propagateWorldChange();
+            }
+        }
+    }
 }
 
 }  // namespace wen

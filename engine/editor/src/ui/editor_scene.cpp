@@ -6,6 +6,7 @@
 #include "function/framework/component/transform/transform_component.hpp"
 #include "function/framework/scene_serializer.hpp"
 #include "core/base/macro.hpp"
+#include <functional>
 
 namespace wen::editor {
 
@@ -78,23 +79,60 @@ GameObject* createEmptyGameObject() {
     return game_object;
 }
 
+GameObject* createChildGameObject(GameObject* parent) {
+    auto* scene = global_context->scene_manager->getActiveScene();
+    if (scene == nullptr || parent == nullptr) {
+        return nullptr;
+    }
+    auto* game_object = scene->createGameObject("GameObject");
+    auto* transform = new TransformComponent;  // 本地坐标原点,跟随父变换
+    game_object->addComponent(transform);
+    game_object->setParent(parent);
+    if (auto* t = game_object->queryComponent<TransformComponent>()) {
+        t->propagateWorldChange();
+    }
+    return game_object;
+}
+
 GameObject* duplicateGameObject(GameObject* source) {
     auto* scene = global_context->scene_manager->getActiveScene();
     if (scene == nullptr || source == nullptr) {
         return nullptr;
     }
-    auto* clone = scene->createGameObject(source->getName() + " (copy)");
-    for (auto* component : source->getComponents()) {
-        if (auto* cloned = cloneComponent(component)) {
-            clone->addComponent(cloned);
+    // 整棵子树深拷贝:逐组件克隆,并递归克隆子对象后挂到克隆父下。
+    std::function<GameObject*(GameObject*, bool is_root)> clone = [&](GameObject* src, bool is_root) {
+        auto* clone_go = scene->createGameObject(src->getName() + (is_root ? " (copy)" : ""));
+        for (auto* component : src->getComponents()) {
+            if (auto* cloned = cloneComponent(component)) {
+                clone_go->addComponent(cloned);
+            }
         }
-    }
-    return clone;
+        for (auto* child : src->getChildren()) {
+            if (auto* child_clone = clone(child, false)) {
+                child_clone->setParent(clone_go);
+            }
+        }
+        return clone_go;
+    };
+    return clone(source, true);
 }
 
 void removeGameObject(GameObject* game_object) {
-    if (auto* scene = global_context->scene_manager->getActiveScene()) {
-        scene->removeGameObject(game_object);
+    auto* scene = global_context->scene_manager->getActiveScene();
+    if (scene == nullptr || game_object == nullptr) {
+        return;
+    }
+    // 级联删除整棵子树:先收集(自底向上),再逐个从场景移除。
+    std::vector<GameObject*> to_remove;
+    std::function<void(GameObject*)> collect = [&](GameObject* go) {
+        for (auto* child : go->getChildren()) {
+            collect(child);
+        }
+        to_remove.push_back(go);
+    };
+    collect(game_object);
+    for (auto* go : to_remove) {
+        scene->removeGameObject(go);
     }
 }
 

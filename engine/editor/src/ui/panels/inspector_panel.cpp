@@ -1,8 +1,10 @@
 #include "ui/panels/inspector_panel.hpp"
 #include "ui/ui_context.hpp"
 #include "ui/undo.hpp"
+#include "ui/selection.hpp"
 #include "ui/prefab_actions.hpp"
 #include "engine/global_context.hpp"
+#include "function/framework/game_object.hpp"
 #include "function/framework/component/transform/transform_component.hpp"
 #include "function/framework/component/prefab/prefab_component.hpp"
 
@@ -34,6 +36,15 @@ void InspectorPanel::render() {
     }
 
     ImGui::Text("GameObject: %s", game_object->getName().c_str());
+    if (auto* parent = game_object->getParent()) {
+        ImGui::TextDisabled("Parent:");
+        ImGui::SameLine();
+        if (ImGui::Button(parent->getName().c_str())) {
+            setSelectedGameObject(parent->getUUID());  // 点击跳转到父对象
+        }
+    } else {
+        ImGui::TextDisabled("Parent: <none>");
+    }
     ImGui::Separator();
 
     // Prefab 实例:显示来源 + Revert/Apply。

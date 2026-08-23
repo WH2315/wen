@@ -1,6 +1,9 @@
 #include "function/asset/asset_system.hpp"
 #include "core/base/macro.hpp"
-#include <tiny_obj_loader.h>
+#include <assimp/Importer.hpp>
+#include <assimp/scene.h>
+#include <assimp/postprocess.h>
+#include <functional>
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/hash.hpp>
 
@@ -56,21 +59,39 @@ MeshID AssetSystem::loadMesh(const std::string& filename, const std::vector<std:
         return iter->second;
     }
 
-    tinyobj::attrib_t attrib;
-    std::vector<tinyobj::shape_t> shapes;
-    std::vector<tinyobj::material_t> materials;
-    std::string warn, err;
-
-    if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, (path_ + "/models/" + filename).c_str())) {
+    Assimp::Importer importer;
+    const aiScene* scene = importer.ReadFile(
+        path_ + "/models/" + filename,
+        aiProcess_Triangulate | aiProcess_GenSmoothNormals | aiProcess_GenUVCoords | aiProcess_JoinIdenticalVertices
+    );
+    if (scene == nullptr || scene->mRootNode == nullptr) {
         WEN_CORE_ERROR("Failed to load mesh: {}", filename)
         return MeshID(-1);
     }
 
+    // 按节点(OBJ 中的 object/group)收集形状候选,保持树序
+    std::vector<std::pair<std::string, std::vector<const aiMesh*>>> shapes;
+    std::function<void(aiNode*)> collect = [&](aiNode* node) {
+        for (uint32_t i = 0; i < node->mNumChildren; ++i) {
+            collect(node->mChildren[i]);
+        }
+        if (node->mNumMeshes == 0) {
+            return;
+        }
+        std::vector<const aiMesh*> meshes;
+        meshes.reserve(node->mNumMeshes);
+        for (uint32_t i = 0; i < node->mNumMeshes; ++i) {
+            meshes.push_back(scene->mMeshes[node->mMeshes[i]]);
+        }
+        shapes.emplace_back(node->mName.C_Str(), std::move(meshes));
+    };
+    collect(scene->mRootNode);
+
     std::vector<size_t> lods_shape_index;
     if (lods.empty()) {
         size_t lod_index = 0;
-        for (const auto& shape : shapes) {
-            WEN_CORE_INFO("Auto Selecet {} as LOD {}", shape.name, lod_index)
+        for (const auto& [name, _] : shapes) {
+            WEN_CORE_INFO("Auto Select {} as LOD {}", name, lod_index)
             lods_shape_index.push_back(lod_index);
             lod_index++;
         }
@@ -80,9 +101,9 @@ MeshID AssetSystem::loadMesh(const std::string& filename, const std::vector<std:
         for (auto lod_shape_name : lods) {
             bool found = false;
             size_t lod_shape_index = 0;
-            for (const auto& shape : shapes) {
-                if (shape.name == lod_shape_name) {
-                    WEN_CORE_INFO("Find {} as LOD {}", shape.name, lod_index)
+            for (const auto& [name, _] : shapes) {
+                if (name == lod_shape_name) {
+                    WEN_CORE_INFO("Find {} as LOD {}", name, lod_index)
                     lods_shape_index.push_back(lod_shape_index);
                     last_found_index = lod_shape_index;
                     found = true;
@@ -91,7 +112,7 @@ MeshID AssetSystem::loadMesh(const std::string& filename, const std::vector<std:
                 lod_shape_index++;
             }
             if (!found) {
-                WEN_CORE_INFO("Auto Selecet {} as LOD {}", shapes[last_found_index].name, lod_index)
+                WEN_CORE_INFO("Auto Select {} as LOD {}", shapes[last_found_index].first, lod_index)
                 lods_shape_index.push_back(last_found_index);
             }
             lod_index++;
@@ -102,47 +123,42 @@ MeshID AssetSystem::loadMesh(const std::string& filename, const std::vector<std:
     for (auto lod_shape_index : lods_shape_index) {
         auto& primitive = data.lods.emplace_back();
         std::unordered_map<ObjVertex, uint32_t> unique_vertices;
-        for (const auto& index : shapes[lod_shape_index].mesh.indices) {
-            ObjVertex vertex{};
-            vertex.position = {
-                attrib.vertices[3 * index.vertex_index + 0],
-                attrib.vertices[3 * index.vertex_index + 1],
-                attrib.vertices[3 * index.vertex_index + 2],
-            };
-            vertex.normal = {
-                attrib.normals[3 * index.normal_index + 0],
-                attrib.normals[3 * index.normal_index + 1],
-                attrib.normals[3 * index.normal_index + 2]
-            };
-            if (attrib.texcoords.empty()) {
-                vertex.texcoord = {0, 0};
-            } else {
-                vertex.texcoord = {
-                    attrib.texcoords[2 * index.texcoord_index + 0],
-                    attrib.texcoords[2 * index.texcoord_index + 1],
-                };
-            }
-            if (attrib.colors.empty()) {
-                vertex.color = {1, 1, 1};
-            } else {
-                vertex.color = {
-                    attrib.colors[3 * index.vertex_index + 0],
-                    attrib.colors[3 * index.vertex_index + 1],
-                    attrib.colors[3 * index.vertex_index + 2],
-                };
-            }
+        for (const aiMesh* ai_mesh : shapes[lod_shape_index].second) {
+            for (uint32_t f = 0; f < ai_mesh->mNumFaces; f++) {
+                const aiFace& face = ai_mesh->mFaces[f];
+                for (uint32_t v = 0; v < face.mNumIndices; v++) {
+                    uint32_t index = face.mIndices[v];
+                    ObjVertex vertex{};
+                    vertex.position = {ai_mesh->mVertices[index].x, ai_mesh->mVertices[index].y, ai_mesh->mVertices[index].z};
+                    if (ai_mesh->HasNormals()) {
+                        vertex.normal = {ai_mesh->mNormals[index].x, ai_mesh->mNormals[index].y, ai_mesh->mNormals[index].z};
+                    } else {
+                        vertex.normal = {0, 0, 0};
+                    }
+                    if (ai_mesh->HasTextureCoords(0)) {
+                        vertex.texcoord = {ai_mesh->mTextureCoords[0][index].x, ai_mesh->mTextureCoords[0][index].y};
+                    } else {
+                        vertex.texcoord = {0, 0};
+                    }
+                    if (ai_mesh->HasVertexColors(0)) {
+                        vertex.color = {ai_mesh->mColors[0][index].r, ai_mesh->mColors[0][index].g, ai_mesh->mColors[0][index].b};
+                    } else {
+                        vertex.color = {1, 1, 1};
+                    }
 
-            // 默认顶点颜色取网格自身颜色(无顶点色的 OBJ 为白色)。
-            // 注意:这里曾用基于 LOD 层级的调试色覆盖(c=0 时 {0,0.2,1}=蓝色),
-            // 已移除 —— 网格默认应显示 base_color(默认白),而非 LOD 调试色。
-            if (unique_vertices.count(vertex) == 0) {
-                unique_vertices.insert(std::make_pair(vertex, primitive.positions.size()));
-                primitive.positions.push_back(vertex.position);
-                primitive.normals.push_back(vertex.normal);
-                primitive.texcoords.push_back(vertex.texcoord);
-                primitive.colors.push_back(vertex.color);
+                    // 默认顶点颜色取网格自身颜色(无顶点色的 OBJ 为白色)。
+                    // 注意:这里曾用基于 LOD 层级的调试色覆盖(c=0 时 {0,0.2,1}=蓝色),
+                    // 已移除 —— 网格默认应显示 base_color(默认白),而非 LOD 调试色。
+                    if (unique_vertices.count(vertex) == 0) {
+                        unique_vertices.insert(std::make_pair(vertex, primitive.positions.size()));
+                        primitive.positions.push_back(vertex.position);
+                        primitive.normals.push_back(vertex.normal);
+                        primitive.texcoords.push_back(vertex.texcoord);
+                        primitive.colors.push_back(vertex.color);
+                    }
+                    primitive.indices.push_back(unique_vertices.at(vertex));
+                }
             }
-            primitive.indices.push_back(unique_vertices.at(vertex));
         }
     }
 

@@ -50,17 +50,17 @@ public:
         auto transform_component = game_object_->queryComponent<TransformComponent>();
         if (transform_component != nullptr) {
             mesh_instance_pool->createMeshInstance({
-                .location = transform_component->location,
-                .rotation = transform_component->rotation,
-                .scale = transform_component->scale,
+                .location = transform_component->getWorldLocation(),
+                .rotation = transform_component->getWorldRotation(),
+                .scale = transform_component->getWorldScale(),
                 .mesh_id = mesh_id
             }, game_object_->getUUID());
             transform_callback_id_ = transform_component->addMemberUpdateCallback(
                 [transform_component, uuid = game_object_->getUUID()](Component* component) {
                     auto ptr = global_context->render_system->getRenderData()->getMeshInstancePool()->getMeshInstancePtr(uuid);
-                    ptr->location = transform_component->location;
-                    ptr->rotation = transform_component->rotation;
-                    ptr->scale = transform_component->scale;
+                    ptr->location = transform_component->getWorldLocation();
+                    ptr->rotation = transform_component->getWorldRotation();
+                    ptr->scale = transform_component->getWorldScale();
                 });
             has_transform_callback_ = true;
         } else {

@@ -296,9 +296,10 @@ void PhysicsSystem::createBodyLocked(GameObjectUUID uuid,
         (motion == JPH::EMotionType::Static) ? Layers::kNonMoving : Layers::kMoving;
 
     JPH::BodyCreationSettings settings(shape.GetPtr(),
-                                       JPH::Vec3(transform.location.x, transform.location.y,
-                                                 transform.location.z),
-                                       eulerToQuat(transform.rotation), motion, layer);
+                                       JPH::Vec3(transform.getWorldLocation().x,
+                                                 transform.getWorldLocation().y,
+                                                 transform.getWorldLocation().z),
+                                       eulerToQuat(transform.getWorldRotation()), motion, layer);
     settings.mIsSensor = collider.is_trigger;
     settings.mFriction = rigidbody.friction;
     settings.mRestitution = rigidbody.restitution;
@@ -426,10 +427,10 @@ void PhysicsSystem::fixedTick() {
     for (auto& [uuid, entry] : impl_->bodies_) {
         if (entry.body_type == RigidbodyComponent::kKinematic && entry.transform != nullptr) {
             bi.SetPositionAndRotation(entry.body_id,
-                                      JPH::Vec3(entry.transform->location.x,
-                                                entry.transform->location.y,
-                                                entry.transform->location.z),
-                                      eulerToQuat(entry.transform->rotation),
+                                      JPH::Vec3(entry.transform->getWorldLocation().x,
+                                                entry.transform->getWorldLocation().y,
+                                                entry.transform->getWorldLocation().z),
+                                      eulerToQuat(entry.transform->getWorldRotation()),
                                       JPH::EActivation::Activate);
         }
     }
@@ -463,10 +464,17 @@ void PhysicsSystem::applyPendingResults() {
         if (transform == nullptr) {
             continue;
         }
+        // P0 约束:动态体写回仅支持场景根对象(结果为世界坐标)。
+        // 挂在父节点上的动态体不在支持范围,跳过以免把世界坐标误写进本地分量。
+        if (transform->getGameObject() != nullptr &&
+            transform->getGameObject()->getParent() != nullptr) {
+            continue;
+        }
         transform->location = glm::vec3(result.position.GetX(), result.position.GetY(),
                                         result.position.GetZ());
         transform->rotation = quatToEulerDeg(result.rotation);
-        transform->triggerMemberUpdateCallbacks();
+        // 脏传播:动态体写回后同步其上所有后代组件(如子 Mesh)的世界变换。
+        transform->propagateWorldChange();
     }
 }
 

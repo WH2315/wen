@@ -25,6 +25,9 @@ glm::vec3 editorSpawnLocation();
 // 在活动场景创建空对象(带 Transform,位于编辑器相机前方)。
 GameObject* createEmptyGameObject();
 
+// 在指定父对象下创建空子对象(本地坐标原点,继承父变换)。
+GameObject* createChildGameObject(GameObject* parent);
+
 // 深拷贝对象(逐组件克隆,组件添加顺序保持不变)。
 GameObject* duplicateGameObject(GameObject* source);
 
