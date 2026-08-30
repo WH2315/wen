@@ -67,6 +67,22 @@ vec3 fresnel_schlick_roughness(float cos_theta, vec3 f0, float roughness) {
     return f0 + (max(vec3(1.0 - roughness), f0) - f0) * pow(clamp(1.0 - cos_theta, 0.0, 1.0), 5.0);
 }
 
+// ---------- 逐点光源的 Cook-Torrance 镜面 BRDF ----------
+
+// GGX 法线分布函数。
+float distribution_ggx(vec3 n, vec3 h, float roughness) {
+    float a = roughness * roughness;
+    float a2 = a * a;
+    float ndh = max(dot(n, h), 0.0);
+    float denom = ndh * ndh * (a2 - 1.0) + 1.0;
+    return a2 / (PI * denom * denom);
+}
+
+// 标准 Schlick 菲涅尔(方向光镜面用,不带粗糙度近似)。
+vec3 fresnel_schlick(float cos_theta, vec3 f0) {
+    return f0 + (vec3(1.0) - f0) * pow(clamp(1.0 - cos_theta, 0.0, 1.0), 5.0);
+}
+
 vec2 integrate_brdf(float ndotv, float roughness) {
     vec3 v = vec3(sqrt(1.0 - ndotv * ndotv), 0.0, ndotv);
     vec3 n = vec3(0.0, 0.0, 1.0);

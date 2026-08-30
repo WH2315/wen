@@ -56,7 +56,7 @@ Imgui::Imgui(Renderer& renderer) : renderer_(renderer) {
     renderer.updateRenderPass();
 
     ImFontConfig config;
-    io.Fonts->AddFontFromFileTTF("sandbox/resources/JetBrainsMonoNLNerdFontMono-Bold.ttf", 18.0f, &config, io.Fonts->GetGlyphRangesDefault());
+    io.Fonts->AddFontFromFileTTF("engine/assets/fonts/JetBrainsMonoNLNerdFontMono-Bold.ttf", 18.0f, &config, io.Fonts->GetGlyphRangesDefault());
 
     ImGui_ImplGlfw_InitForVulkan(global_context->window_system->getRuntimeWindow()->getWindow(), true);
     ImGui_ImplVulkan_InitInfo init_info = {};

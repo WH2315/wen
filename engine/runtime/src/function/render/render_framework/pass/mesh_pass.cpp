@@ -42,8 +42,15 @@ void MeshPass::createRenderResource(std::shared_ptr<Renderer::Renderer> renderer
         {7, vk::DescriptorType::eStorageBuffer, Renderer::ShaderStage::eFragment},
         {8, vk::DescriptorType::eStorageBuffer, Renderer::ShaderStage::eFragment},
         {9, vk::DescriptorType::eStorageBuffer, Renderer::ShaderStage::eFragment},
-        {10, vk::DescriptorType::eCombinedImageSampler, 16, Renderer::ShaderStage::eFragment},
+        {10, vk::DescriptorType::eCombinedImageSampler, 64, Renderer::ShaderStage::eFragment},
         {11, vk::DescriptorType::eStorageBuffer, Renderer::ShaderStage::eFragment},
+        // 法线贴图数组
+        {16, vk::DescriptorType::eCombinedImageSampler, 64, Renderer::ShaderStage::eFragment},
+        // 逐顶点切线(TBN)
+        {17, vk::DescriptorType::eStorageBuffer, Renderer::ShaderStage::eFragment},
+        // metallic-roughness / AO 贴图数组
+        {18, vk::DescriptorType::eCombinedImageSampler, 64, Renderer::ShaderStage::eFragment},
+        {19, vk::DescriptorType::eCombinedImageSampler, 64, Renderer::ShaderStage::eFragment},
         // IBL:环境立方体 / 辐照度 / 预过滤镜面 / BRDF LUT
         {12, vk::DescriptorType::eCombinedImageSampler, Renderer::ShaderStage::eFragment},
         {13, vk::DescriptorType::eCombinedImageSampler, Renderer::ShaderStage::eFragment},
@@ -75,11 +82,24 @@ void MeshPass::createRenderResource(std::shared_ptr<Renderer::Renderer> renderer
     descriptor_set_->bindStorageBuffer(8, resource.counts_buffer);
     descriptor_set_->bindStorageBuffer(9, resource.available_indirect_commands_buffer);
     descriptor_set_->bindStorageBuffer(11, global_context->light_system->getLightBuffer());
+    descriptor_set_->bindStorageBuffer(17, global_context->asset_system->getMeshPool()->tangent_buffer);
 
     // 首次绑定纹理数组(纹理池运行时增长时在 executeRenderPass 重绑)。
     if (auto* texture_pool = global_context->asset_system->getTexturePool()) {
         descriptor_set_->bindTextures(10, texture_pool->texturesSamplersPadded());
         last_bound_texture_count_ = texture_pool->getTextureCount();
+    }
+    if (auto* normal_pool = global_context->asset_system->getNormalTexturePool()) {
+        descriptor_set_->bindTextures(16, normal_pool->texturesSamplersPadded());
+        last_bound_normal_texture_count_ = normal_pool->getTextureCount();
+    }
+    if (auto* mr_pool = global_context->asset_system->getMrTexturePool()) {
+        descriptor_set_->bindTextures(18, mr_pool->texturesSamplersPadded());
+        last_bound_mr_texture_count_ = mr_pool->getTextureCount();
+    }
+    if (auto* ao_pool = global_context->asset_system->getAoTexturePool()) {
+        descriptor_set_->bindTextures(19, ao_pool->texturesSamplersPadded());
+        last_bound_ao_texture_count_ = ao_pool->getTextureCount();
     }
 
     // 绑定 IBL 环境资源(EnvironmentSystem 在渲染器创建前已生成完毕)。
@@ -128,6 +148,24 @@ void MeshPass::executeRenderPass(std::shared_ptr<Renderer::Renderer> renderer, R
         renderer->waitIdle();
         descriptor_set_->bindTextures(10, texture_pool->texturesSamplersPadded());
         last_bound_texture_count_ = texture_pool->getTextureCount();
+    }
+    if (auto* normal_pool = global_context->asset_system->getNormalTexturePool();
+        normal_pool->getTextureCount() != last_bound_normal_texture_count_) {
+        renderer->waitIdle();
+        descriptor_set_->bindTextures(16, normal_pool->texturesSamplersPadded());
+        last_bound_normal_texture_count_ = normal_pool->getTextureCount();
+    }
+    if (auto* mr_pool = global_context->asset_system->getMrTexturePool();
+        mr_pool->getTextureCount() != last_bound_mr_texture_count_) {
+        renderer->waitIdle();
+        descriptor_set_->bindTextures(18, mr_pool->texturesSamplersPadded());
+        last_bound_mr_texture_count_ = mr_pool->getTextureCount();
+    }
+    if (auto* ao_pool = global_context->asset_system->getAoTexturePool();
+        ao_pool->getTextureCount() != last_bound_ao_texture_count_) {
+        renderer->waitIdle();
+        descriptor_set_->bindTextures(19, ao_pool->texturesSamplersPadded());
+        last_bound_ao_texture_count_ = ao_pool->getTextureCount();
     }
 
     renderer->bindPipeline(mesh_pipeline_pipeline_);

@@ -5,6 +5,7 @@
 #include "ui/component_ui/script_component_ui.hpp"
 #include "ui/component_ui/collider_component_ui.hpp"
 #include "ui/component_ui/rigidbody_component_ui.hpp"
+#include "ui/component_ui/custom_shader_component_ui.hpp"
 #include "ui/undo.hpp"
 
 namespace wen::editor {
@@ -16,6 +17,7 @@ ComponentUIManager::ComponentUIManager() {
     registerComponentUI<ScriptComponent>();
     registerComponentUI<ColliderComponent>();
     registerComponentUI<RigidbodyComponent>();
+    registerComponentUI<CustomShaderComponent>();
 }
 
 void ComponentUIManager::renderComponent(Component* component, const std::function<void()>& on_remove) {

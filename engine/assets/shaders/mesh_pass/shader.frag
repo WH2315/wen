@@ -40,6 +40,10 @@ layout(std430, binding = 6) readonly buffer ColorBuffer {
     float colors[];
 };
 
+layout(std430, binding = 17) readonly buffer TangentBuffer {
+    float tangents[];
+};
+
 layout(std430, binding = 7) readonly buffer InstanceData {
     vec4 instance_datas[];
 };
@@ -53,8 +57,11 @@ layout(std430, binding = 9) readonly buffer AvailableIndirectCommands {
     VkDrawIndexedIndirectCommand available_indirect_commands[];
 };
 
-const uint MAX_TEXTURE_COUNT = 16;
+const uint MAX_TEXTURE_COUNT = 64;
 layout(binding = 10) uniform sampler2D albedo_textures[MAX_TEXTURE_COUNT];
+layout(binding = 16) uniform sampler2D normal_textures[MAX_TEXTURE_COUNT];
+layout(binding = 18) uniform sampler2D mr_textures[MAX_TEXTURE_COUNT];
+layout(binding = 19) uniform sampler2D ao_textures[MAX_TEXTURE_COUNT];
 
 struct Light {
     vec4 position_type;    // .xyz = 位置(点/聚光), .w = 类型 0=方向 1=点 2=聚光
@@ -114,7 +121,7 @@ vec3 aces_film(vec3 x) {
     return clamp((x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14), 0.0, 1.0);
 }
 
-vec4 shading(vec3 pos, vec3 normal, vec2 tex_coord, vec3 color, vec3 base_color, uint texture_index, float metallic, float roughness, uint lod_index) {
+vec4 shading(vec3 pos, vec3 normal, vec2 tex_coord, vec3 color, vec3 base_color, uint texture_index, float metallic, float roughness, uint lod_index, vec3 emissive, float occlusion) {
     vec3 albedo = base_color * color;
     if (texture_index > 0u && texture_index < MAX_TEXTURE_COUNT) {
         albedo *= texture(albedo_textures[texture_index], tex_coord).rgb;
@@ -138,14 +145,14 @@ vec4 shading(vec3 pos, vec3 normal, vec2 tex_coord, vec3 color, vec3 base_color,
     vec3 r = reflect(-view_dir, normal);
     vec3 prefiltered = textureLod(prefiltered_map, r, roughness * (PREFILTER_MIP_LEVELS - 1.0)).rgb;
     vec2 brdf = texture(brdf_lut, vec2(ndv, roughness)).rg;
-    vec3 fresnel = fresnel_schlick_roughness(ndv, f0, roughness);
-    vec3 specular_ibl = prefiltered * (fresnel * brdf.x + brdf.y);
+    vec3 fresnel_ibl = fresnel_schlick_roughness(ndv, f0, roughness);
+    vec3 specular_ibl = prefiltered * (fresnel_ibl * brdf.x + brdf.y);
 
     // 金属度抑制漫反射(金属几乎没有漫反射)
-    vec3 kd = mix(vec3(1.0), vec3(0.0), metallic);
-    vec3 lighting = kd * diffuse_ibl + specular_ibl;
+    vec3 kd_ibl = mix(vec3(1.0), vec3(0.0), metallic);
+    vec3 lighting = kd_ibl * diffuse_ibl + specular_ibl;
 
-    // 逐光源:漫反射 + Blinn-Phong 高光(高光宽度随粗糙度变化)
+    // 逐点光源:Cook-Torrance 镜面 BRDF(GGX 分布 + Smith 几何 + Schlick 菲涅尔) + 漫反射。
     for (uint i = 0u; i < min(light_count, MAX_LIGHT_COUNT); i++) {
         Light light = lights[i];
         vec3 light_color = light.color_intensity.rgb * light.color_intensity.w;
@@ -169,13 +176,24 @@ vec4 shading(vec3 pos, vec3 normal, vec2 tex_coord, vec3 color, vec3 base_color,
             }
         }
 
-        float ndl = max(dot(normal, light_dir), 0.0);
         vec3 half_dir = normalize(light_dir + view_dir);
-        float spec_power = mix(128.0, 8.0, roughness);
-        float spec = pow(max(dot(normal, half_dir), 0.0), spec_power);
-        lighting += light_color * (kd * albedo * ndl + spec * 0.5) * attenuation;
+        float ndl = max(dot(normal, light_dir), 0.0);
+        if (ndl <= 0.0) {
+            continue;
+        }
+
+        // 镜面 Cook-Torrance: D * G * F / (4 * NdotV * NdotL)
+        float ndf = distribution_ggx(normal, half_dir, roughness);
+        float g = geometry_smith(normal, view_dir, light_dir, roughness);
+        vec3 f = fresnel_schlick(max(dot(half_dir, view_dir), 0.0), f0);
+        float denom = 4.0 * max(ndv, 1e-4) * ndl;
+        vec3 specular = ndf * g * f / max(denom, 1e-4);
+
+        // 漫反射系数:Fresnel 已折走的能量 * (1 - metallic)
+        vec3 kd = (vec3(1.0) - f) * (1.0 - metallic);
+        lighting += (kd * albedo / PI + specular) * light_color * ndl * attenuation;
     }
-    return vec4(lighting, 1);
+    return vec4(lighting * occlusion + emissive, 1);
 }
 
 vec4 compute_out_color(VkDrawIndexedIndirectCommand command, uint instance_id, uint triangle_id) {
@@ -203,15 +221,18 @@ vec4 compute_out_color(VkDrawIndexedIndirectCommand command, uint instance_id, u
     vec3 color0 = vec3(colors[idx0 + 0], colors[idx0 + 1], colors[idx0 + 2]);
     vec3 color1 = vec3(colors[idx1 + 0], colors[idx1 + 1], colors[idx1 + 2]);
     vec3 color2 = vec3(colors[idx2 + 0], colors[idx2 + 1], colors[idx2 + 2]);
+    vec3 tangent0 = vec3(tangents[idx0 + 0], tangents[idx0 + 1], tangents[idx0 + 2]);
+    vec3 tangent1 = vec3(tangents[idx1 + 0], tangents[idx1 + 1], tangents[idx1 + 2]);
+    vec3 tangent2 = vec3(tangents[idx2 + 0], tangents[idx2 + 1], tangents[idx2 + 2]);
 
     // 获取实例的变换矩阵和相机的变换矩阵
-    mat3 model = compute_model(instance_datas[instance_id * 5 + 2].xyz, instance_datas[instance_id * 5 + 1].xyz);
+    mat3 model = compute_model(instance_datas[instance_id * 9 + 2].xyz, instance_datas[instance_id * 9 + 1].xyz);
     mat4 project_view = camera.project * camera.view;
 
     // 计算世界坐标系下的三角形顶点位置
-    vec3 world_pos0 = instance_datas[instance_id * 5 + 0].xyz + model * position0;
-    vec3 world_pos1 = instance_datas[instance_id * 5 + 0].xyz + model * position1;
-    vec3 world_pos2 = instance_datas[instance_id * 5 + 0].xyz + model * position2;
+    vec3 world_pos0 = instance_datas[instance_id * 9 + 0].xyz + model * position0;
+    vec3 world_pos1 = instance_datas[instance_id * 9 + 0].xyz + model * position1;
+    vec3 world_pos2 = instance_datas[instance_id * 9 + 0].xyz + model * position2;
 
     // 计算NDC坐标系下的三角形顶点位置
     vec4 ndc_pos0 = project_view * vec4(world_pos0, 1);
@@ -244,17 +265,62 @@ vec4 compute_out_color(VkDrawIndexedIndirectCommand command, uint instance_id, u
     // 因为model矩阵可能包含旋转和缩放，所以需要重新计算法向量
     normal = normalize(transpose(inverse(model)) * normal);
 
-    // 材质数据:第 4 个 vec4 = (base_color.rgb, texture_index);第 5 个 vec4 = (metallic, roughness, 0, 0)
-    vec4 material_data = instance_datas[instance_id * 5 + 3];
+    // 切线 -> 世界,并相对法线正交化,构成 TBN。
+    vec3 tangent = normalize(interpolate_vec3(mat3(tangent0, tangent1, tangent2), db_dx, db_dy, delta));
+    tangent = normalize(mat3(model) * tangent);
+    tangent = normalize(tangent - normal * dot(normal, tangent));
+    vec3 bitangent = cross(normal, tangent);
+
+    // 材质数据:第 4 个 vec4 = (base_color.rgb, texture_index);第 5 个 vec4 = (metallic, roughness, 0, lod_index)
+    vec4 material_data = instance_datas[instance_id * 9 + 3];
     vec3 base_color = material_data.rgb;
     uint texture_index = uint(material_data.w + 0.5);
-    vec4 pbr_data = instance_datas[instance_id * 5 + 4];
+    vec4 pbr_data = instance_datas[instance_id * 9 + 4];
     float metallic = clamp(pbr_data.x, 0.0, 1.0);
     float roughness = clamp(pbr_data.y, 0.04, 1.0);
     uint lod_index = uint(pbr_data.w + 0.5);  // compact_instance.comp 写入选中的 LOD 层级
+    // 第 6 个 vec4 = (emissive.rgb, intensity)
+    vec4 emissive_data = instance_datas[instance_id * 9 + 5];
+    vec3 emissive = emissive_data.rgb * emissive_data.w;
+    // 第 7 个 vec4 = UV 平铺 (tiling.x, tiling.y)
+    vec2 tiling = instance_datas[instance_id * 9 + 6].xy;
+    uv *= tiling;
+
+    // 第 8 个 vec4 = 法线贴图 (index, scale)
+    vec4 normal_data = instance_datas[instance_id * 9 + 7];
+    uint normal_index = uint(normal_data.x + 0.5);
+    float normal_scale = normal_data.y;
+
+    // 第 9 个 vec4 = MR/AO (mr_index, ao_index, ao_intensity)
+    vec4 mr_ao_data = instance_datas[instance_id * 9 + 8];
+    uint mr_index = uint(mr_ao_data.x + 0.5);
+    uint ao_index = uint(mr_ao_data.y + 0.5);
+    float ao_intensity = mr_ao_data.z;
+
+    // metallic-roughness 贴图调制(B=金属度, G=粗糙度)。
+    if (mr_index > 0u && mr_index < MAX_TEXTURE_COUNT) {
+        vec3 mr = texture(mr_textures[mr_index], uv).rgb;
+        metallic = clamp(metallic * mr.b, 0.0, 1.0);
+        roughness = clamp(roughness * mr.g, 0.04, 1.0);
+    }
+
+    // AO:环境光遮蔽乘到最终光照。
+    float occlusion = 1.0;
+    if (ao_index > 0u && ao_index < MAX_TEXTURE_COUNT) {
+        float ao = max(texture(ao_textures[ao_index], uv).r, 0.0);
+        occlusion = mix(1.0, ao, clamp(ao_intensity, 0.0, 1.0));
+    }
+
+    // 法线贴图扰动:经 TBN 把切线空间法线转到世界空间(无法线贴图时用几何法线)。
+    vec3 shade_normal = normal;
+    if (normal_index > 0u && normal_index < MAX_TEXTURE_COUNT) {
+        vec3 n_raw = texture(normal_textures[normal_index], uv).rgb * 2.0 - 1.0;
+        n_raw.xy *= normal_scale;
+        shade_normal = normalize(tangent * n_raw.x + bitangent * n_raw.y + normal * n_raw.z);
+    }
 
     // 进行着色
-    return shading(pos, normal, uv, color, base_color, texture_index, metallic, roughness, lod_index);
+    return shading(pos, shade_normal, uv, color, base_color, texture_index, metallic, roughness, lod_index, emissive, occlusion);
 }
 
 void main() {

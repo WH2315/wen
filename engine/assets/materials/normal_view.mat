@@ -1,0 +1,7 @@
+{
+    "shader": "custom/normal_view.frag",
+    "base_color": [1.0, 1.0, 1.0],
+    "intensity": 1.0,
+    "mode": 0,
+    "wireframe": false
+}

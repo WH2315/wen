@@ -31,6 +31,16 @@ public:
     TextureID loadTexture(const std::string& filename) { return texture_pool_->uploadTexture(filename); }
     std::string getTextureFilename(TextureID id) const { return texture_pool_->getTextureFilename(id); }
 
+    // 法线贴图纹理池(与 albedo 分开,便于不同兜底语义)。
+    TextureID loadNormalTexture(const std::string& filename) { return normal_texture_pool_->uploadTexture(filename); }
+    auto getNormalTexturePool() const { return normal_texture_pool_.get(); }
+
+    // metallic-roughness / AO 纹理池。
+    TextureID loadMrTexture(const std::string& filename) { return mr_texture_pool_->uploadTexture(filename); }
+    auto getMrTexturePool() const { return mr_texture_pool_.get(); }
+    TextureID loadAoTexture(const std::string& filename) { return ao_texture_pool_->uploadTexture(filename); }
+    auto getAoTexturePool() const { return ao_texture_pool_.get(); }
+
     auto getMaxPrimitiveCount() const { return 4096; }
     auto getMaxMeshCount() const { return 1024; }
     auto getMeshPool() const { return mesh_pool_.get(); }
@@ -40,6 +50,9 @@ private:
     std::string path_;
     std::unique_ptr<MeshPool> mesh_pool_;
     std::unique_ptr<TexturePool> texture_pool_;
+    std::unique_ptr<TexturePool> normal_texture_pool_;
+    std::unique_ptr<TexturePool> mr_texture_pool_;
+    std::unique_ptr<TexturePool> ao_texture_pool_;
     std::map<std::string, MeshID> loaded_meshes_;
 };
 

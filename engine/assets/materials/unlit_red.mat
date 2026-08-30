@@ -1,0 +1,12 @@
+{
+  "base_color": [
+    1.0,
+    1.0,
+    0.0
+  ],
+  "cull": "none",
+  "intensity": 1.0,
+  "mode": 0.0,
+  "shader": "custom/unlit.frag",
+  "wireframe": false
+}

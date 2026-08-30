@@ -8,6 +8,14 @@ struct MeshInstance {
     uint texture_index;
     float metallic;
     float roughness;
+    vec3 emissive_color;
+    float emissive_intensity;
+    vec2 tiling;
+    uint normal_texture_index;
+    float normal_scale;
+    uint mr_texture_index;
+    uint ao_texture_index;
+    float ao_intensity;
 };
 
 struct MeshDescriptor {

@@ -14,6 +14,7 @@ MeshPool::MeshPool(uint64_t vertex_memory_size, uint64_t index_memory_size, uint
     normal_buffer = interface->createVertexBuffer(sizeof(glm::vec3), max_vertex_count, vk::BufferUsageFlagBits::eStorageBuffer);
     texcoord_buffer = interface->createVertexBuffer(sizeof(glm::vec2), max_vertex_count, vk::BufferUsageFlagBits::eStorageBuffer);
     color_buffer = interface->createVertexBuffer(sizeof(glm::vec3), max_vertex_count, vk::BufferUsageFlagBits::eStorageBuffer);
+    tangent_buffer = interface->createVertexBuffer(sizeof(glm::vec3), max_vertex_count, vk::BufferUsageFlagBits::eStorageBuffer);
     index_buffer = interface->createIndexBuffer(Renderer::IndexType::eUint32, max_index_count, vk::BufferUsageFlagBits::eStorageBuffer);
 
     current_primitive_descriptor_count = 0;
@@ -71,6 +72,9 @@ MeshID MeshPool::uploadMeshData(const MeshData& mesh_data) {
         normal_buffer->setData(primitive.normals, current_vertex_count);
         texcoord_buffer->setData(primitive.texcoords, current_vertex_count);
         color_buffer->setData(primitive.colors, current_vertex_count);
+        if (primitive.tangents.size() == primitive.positions.size()) {
+            tangent_buffer->setData(primitive.tangents, current_vertex_count);
+        }
         index_buffer->setData(primitive.indices, current_index_count);
 
         auto primitive_id = current_primitive_descriptor_count;

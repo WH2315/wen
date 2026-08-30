@@ -2,6 +2,7 @@
 #include "function/render/render_framework/pass/culling_pass.hpp"
 #include "function/render/render_framework/pass/visibility_pass.hpp"
 #include "function/render/render_framework/pass/mesh_pass.hpp"
+#include "function/render/render_framework/pass/custom_material_pass.hpp"
 #include "function/render/render_framework/pass/outlining_pass.hpp"
 #include "engine/global_context.hpp"
 #include <backends/imgui_impl_vulkan.h>
@@ -24,6 +25,7 @@ RenderFramework::RenderFramework(bool enable_editor, const std::function<void()>
     subpasses_.push_back(std::make_unique<CullingPass>());
     subpasses_.push_back(std::make_unique<VisibilityPass>());
     subpasses_.push_back(std::make_unique<MeshPass>());
+    subpasses_.push_back(std::make_unique<CustomMaterialPass>());
     subpasses_.push_back(std::make_unique<OutliningPass>());
 
     for (auto& subpass : subpasses_) {

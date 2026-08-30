@@ -14,10 +14,11 @@ struct ObjVertex {
     glm::vec3 normal;
     glm::vec2 texcoord;
     glm::vec3 color;
+    glm::vec3 tangent;
 
     bool operator==(const ObjVertex& other) const {
         return position == other.position && normal == other.normal &&
-               texcoord == other.texcoord && color == other.color;
+               texcoord == other.texcoord && color == other.color && tangent == other.tangent;
     }
 };
 
@@ -32,7 +33,8 @@ struct hash<wen::ObjVertex> {
                   1) ^
                  (hash<glm::vec3>()(vertex.color) << 1)) >>
                 1) ^
-               (hash<glm::vec2>()(vertex.texcoord) << 1);
+               (hash<glm::vec2>()(vertex.texcoord) << 1) ^
+               (hash<glm::vec3>()(vertex.tangent) << 2);
     }
 };
 }  // namespace std
@@ -46,10 +48,16 @@ AssetSystem::AssetSystem() {
         getMaxMeshCount(),
         getMaxPrimitiveCount()
     );
-    texture_pool_ = std::make_unique<TexturePool>(16);
+    texture_pool_ = std::make_unique<TexturePool>(64);
+    normal_texture_pool_ = std::make_unique<TexturePool>(64);
+    mr_texture_pool_ = std::make_unique<TexturePool>(64);
+    ao_texture_pool_ = std::make_unique<TexturePool>(64);
 }
 
 AssetSystem::~AssetSystem() {
+    ao_texture_pool_.reset();
+    mr_texture_pool_.reset();
+    normal_texture_pool_.reset();
     texture_pool_.reset();
     mesh_pool_.reset();
 }
@@ -62,7 +70,8 @@ MeshID AssetSystem::loadMesh(const std::string& filename, const std::vector<std:
     Assimp::Importer importer;
     const aiScene* scene = importer.ReadFile(
         path_ + "/models/" + filename,
-        aiProcess_Triangulate | aiProcess_GenSmoothNormals | aiProcess_GenUVCoords | aiProcess_JoinIdenticalVertices
+        aiProcess_Triangulate | aiProcess_GenSmoothNormals | aiProcess_GenUVCoords |
+        aiProcess_JoinIdenticalVertices | aiProcess_CalcTangentSpace
     );
     if (scene == nullptr || scene->mRootNode == nullptr) {
         WEN_CORE_ERROR("Failed to load mesh: {}", filename)
@@ -145,6 +154,11 @@ MeshID AssetSystem::loadMesh(const std::string& filename, const std::vector<std:
                     } else {
                         vertex.color = {1, 1, 1};
                     }
+                    if (ai_mesh->HasTangentsAndBitangents()) {
+                        vertex.tangent = {ai_mesh->mTangents[index].x, ai_mesh->mTangents[index].y, ai_mesh->mTangents[index].z};
+                    } else {
+                        vertex.tangent = {1, 0, 0};
+                    }
 
                     // 默认顶点颜色取网格自身颜色(无顶点色的 OBJ 为白色)。
                     // 注意:这里曾用基于 LOD 层级的调试色覆盖(c=0 时 {0,0.2,1}=蓝色),
@@ -155,6 +169,7 @@ MeshID AssetSystem::loadMesh(const std::string& filename, const std::vector<std:
                         primitive.normals.push_back(vertex.normal);
                         primitive.texcoords.push_back(vertex.texcoord);
                         primitive.colors.push_back(vertex.color);
+                        primitive.tangents.push_back(vertex.tangent);
                     }
                     primitive.indices.push_back(unique_vertices.at(vertex));
                 }

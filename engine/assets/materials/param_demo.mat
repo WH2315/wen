@@ -1,0 +1,19 @@
+{
+  "base_color": [
+    1.0,
+    0.0,
+    0.0
+  ],
+  "intensity": 1.0,
+  "mode": 0.0,
+  "params": {
+    "color_a": [
+      0.0,
+      1.0,
+      0.16666674613952637
+    ],
+    "mix_factor": 0.47999998927116394
+  },
+  "shader": "custom/param_demo.frag",
+  "wireframe": false
+}

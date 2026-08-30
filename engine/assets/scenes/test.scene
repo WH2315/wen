@@ -38,7 +38,8 @@
           }
         }
       ],
-      "name": "Main Camera"
+      "name": "Main Camera",
+      "uuid": 3
     },
     {
       "components": [
@@ -79,7 +80,8 @@
           }
         }
       ],
-      "name": "Directional Light"
+      "name": "Directional Light",
+      "uuid": 4
     },
     {
       "components": [
@@ -117,6 +119,12 @@
               1.0,
               1.0
             ],
+            "emissive_color": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "emissive_intensity": 0.0,
             "metallic": 1.0,
             "roughness": 0.0,
             "texture_path": ""
@@ -134,7 +142,8 @@
           }
         }
       ],
-      "name": "sphere"
+      "name": "sphere",
+      "uuid": 5
     },
     {
       "components": [
@@ -172,13 +181,20 @@
               0.0,
               0.0
             ],
+            "emissive_color": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "emissive_intensity": 0.0,
             "metallic": 0.7900000214576721,
             "roughness": 0.38999998569488525,
             "texture_path": ""
           }
         }
       ],
-      "name": "bunny"
+      "name": "bunny",
+      "uuid": 6
     },
     {
       "components": [
@@ -210,6 +226,12 @@
               1.0,
               0.0
             ],
+            "emissive_color": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "emissive_intensity": 0.0,
             "metallic": 0.0,
             "roughness": 1.0,
             "texture_path": ""
@@ -237,7 +259,8 @@
           }
         }
       ],
-      "name": "cube"
+      "name": "cube",
+      "uuid": 7
     },
     {
       "components": [
@@ -275,13 +298,20 @@
               1.0,
               1.0
             ],
+            "emissive_color": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "emissive_intensity": 0.0,
             "metallic": 0.0,
             "roughness": 1.0,
             "texture_path": "earth.jpg"
           }
         }
       ],
-      "name": "earth"
+      "name": "earth",
+      "uuid": 8
     },
     {
       "components": [
@@ -361,13 +391,20 @@
               0.9567725658416748,
               1.0
             ],
+            "emissive_color": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "emissive_intensity": 0.0,
             "metallic": 0.0,
             "roughness": 0.5,
             "texture_path": ""
           }
         }
       ],
-      "name": "cube"
+      "name": "cube",
+      "uuid": 9
     },
     {
       "components": [
@@ -440,7 +477,8 @@
           }
         }
       ],
-      "name": "sphere"
+      "name": "sphere",
+      "uuid": 10
     },
     {
       "components": [
@@ -520,13 +558,58 @@
               0.16426515579223633,
               0.16426515579223633
             ],
+            "emissive_color": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "emissive_intensity": 0.0,
             "metallic": 0.0,
             "roughness": 0.5,
             "texture_path": ""
           }
         }
       ],
-      "name": "cube (copy)"
+      "name": "cube (copy)",
+      "uuid": 11
+    },
+    {
+      "components": [
+        {
+          "class": "TransformComponent",
+          "members": {
+            "location": [
+              -0.6284824013710022,
+              -0.8860720992088318,
+              -2.0
+            ],
+            "rotation": [
+              0.0,
+              -0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          }
+        },
+        {
+          "class": "CustomShaderComponent",
+          "members": {
+            "material_path": "unlit_red.mat"
+          }
+        },
+        {
+          "class": "MeshComponent",
+          "members": {
+            "mesh_path": "ray_tracing/sphere.obj"
+          }
+        }
+      ],
+      "name": "GameObject",
+      "uuid": 12
     }
   ],
   "scene": "test"

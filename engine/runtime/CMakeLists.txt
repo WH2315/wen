@@ -16,9 +16,6 @@ target_include_directories(${TARGET_NAME} PUBLIC
     ../../3rdlibs/VulkanMemoryAllocator
     ../../3rdlibs/tinygltf  # vendored nlohmann json.hpp (场景序列化)
 )
-target_include_directories(${TARGET_NAME} PRIVATE
-    ../../3rdlibs/assimp/include
-)
 target_link_libraries(${TARGET_NAME} PUBLIC
     spdlog
     glfw

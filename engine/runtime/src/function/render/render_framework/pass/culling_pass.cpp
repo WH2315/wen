@@ -82,7 +82,7 @@ void CullingPass::createRenderResource(std::shared_ptr<Renderer::Renderer> rende
     resource.primitive_counts_buffer = createBuffer(sizeof(uint32_t) * max_primitive_count);
     resource.indirect_commands_buffer = createBuffer(sizeof(vk::DrawIndexedIndirectCommand) * max_primitive_count);
     resource.available_indirect_commands_buffer = createBuffer(resource.indirect_commands_buffer->getSize(), vk::BufferUsageFlagBits::eIndirectBuffer);
-    resource.instance_datas_buffer = createBuffer(sizeof(glm::vec4) * 5 * max_mesh_instance_count, vk::BufferUsageFlagBits::eVertexBuffer);
+    resource.instance_datas_buffer = createBuffer(sizeof(glm::vec4) * 9 * max_mesh_instance_count, vk::BufferUsageFlagBits::eVertexBuffer);
     // GPU-only: filled by compact_instance.comp, consumed by the outlining
     // pass as vertex (instance data) + indirect draw command.
     resource.outlining_buffer = std::make_shared<Renderer::InFlightBuffer>(

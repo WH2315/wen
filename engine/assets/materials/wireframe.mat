@@ -1,0 +1,11 @@
+{
+  "base_color": [
+    0.0,
+    1.0,
+    0.125
+  ],
+  "intensity": 1.0,
+  "mode": 0.0,
+  "shader": "custom/wireframe.frag",
+  "wireframe": true
+}

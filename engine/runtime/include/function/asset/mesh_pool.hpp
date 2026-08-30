@@ -24,6 +24,7 @@ public:
     std::shared_ptr<Renderer::VertexBuffer> normal_buffer;
     std::shared_ptr<Renderer::VertexBuffer> texcoord_buffer;
     std::shared_ptr<Renderer::VertexBuffer> color_buffer;
+    std::shared_ptr<Renderer::VertexBuffer> tangent_buffer;
     std::shared_ptr<Renderer::IndexBuffer> index_buffer;
 
     std::shared_ptr<Renderer::StorageBuffer> primitive_descriptor_buffer;

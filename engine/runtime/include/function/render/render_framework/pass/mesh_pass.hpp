@@ -21,6 +21,9 @@ private:
     std::shared_ptr<Renderer::PushConstants> push_constants_;  // LOD 调试开关等
 
     uint32_t last_bound_texture_count_ = 0;  // 最近一次绑定时的纹理池大小
+    uint32_t last_bound_normal_texture_count_ = 0;  // 法线贴图池大小
+    uint32_t last_bound_mr_texture_count_ = 0;      // metallic-roughness 池大小
+    uint32_t last_bound_ao_texture_count_ = 0;      // AO 池大小
 };
 
 }  // namespace wen

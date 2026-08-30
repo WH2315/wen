@@ -13,6 +13,7 @@ struct PrimitiveData {
     std::vector<glm::vec3> normals;
     std::vector<glm::vec2> texcoords;
     std::vector<glm::vec3> colors;
+    std::vector<glm::vec3> tangents;  // 逐顶点切线(法线贴图 TBN 用)
     std::vector<uint32_t> indices;
 };
 
