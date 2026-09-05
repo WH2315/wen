@@ -1,7 +1,7 @@
 // -----------------------------------------------------------------
 // CustomMaterialPass
 // 自定义着色器材质 forward 通道(路线 A 的最小 MVP)。
-// 渲染挂有 CustomShaderComponent 的对象,按 .mat 资产逐材质构建 pipeline,
+// 渲染挂有自定义着色器材质 MaterialComponent 的对象,按 .mat 资产逐材质构建 pipeline,
 // 逐对象以世界矩阵绘制。MVP 不写深度,叠加在已着色场景之上。
 // -----------------------------------------------------------------
 
@@ -12,7 +12,7 @@
 #include "function/asset/mesh_pool.hpp"
 #include "function/framework/scene_manager.hpp"
 #include "function/framework/game_object.hpp"
-#include "function/framework/component/custom_shader/custom_shader_component.hpp"
+#include "function/framework/component/material/material_component.hpp"
 #include "function/framework/component/mesh/mesh_component.hpp"
 #include "function/framework/component/transform/transform_component.hpp"
 #include <glm/gtc/type_ptr.hpp>
@@ -212,8 +212,8 @@ void CustomMaterialPass::executeRenderPass(std::shared_ptr<Renderer::Renderer> r
     auto* prim_desc_base = pool.primitive_descriptor_buffer_ptr - pool.current_primitive_descriptor_count;
 
     for (auto* go : scene->getGameObjects()) {
-        auto* custom = go->queryComponent<CustomShaderComponent>();
-        if (custom == nullptr || custom->material_path.empty()) {
+        auto* material = go->queryComponent<MaterialComponent>();
+        if (material == nullptr || material->material_path.empty() || !material->isCustomShaderMaterial()) {
             continue;
         }
         auto* mesh = go->queryComponent<MeshComponent>();
@@ -238,7 +238,7 @@ void CustomMaterialPass::executeRenderPass(std::shared_ptr<Renderer::Renderer> r
         }
         auto& prim = prim_desc_base[primitive_index];
 
-        auto res = getOrCreateMaterial(renderer, custom->material_path);
+        auto res = getOrCreateMaterial(renderer, material->material_path);
         if (res->pipeline == nullptr) {
             continue;
         }

@@ -596,7 +596,7 @@
           }
         },
         {
-          "class": "CustomShaderComponent",
+          "class": "MaterialComponent",
           "members": {
             "material_path": "unlit_red.mat"
           }

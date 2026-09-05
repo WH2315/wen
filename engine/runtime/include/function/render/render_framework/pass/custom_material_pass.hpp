@@ -7,10 +7,10 @@
 
 namespace wen {
 
-// 自定义着色器材质 forward 通道:渲染挂了 CustomShaderComponent(且带
-// MeshComponent + TransformComponent)的对象。按 .mat 资产逐材质缓存
-// pipeline(自带着色器 + 参数 SSBO + 相机),逐对象以世界矩阵 push 绘制。
-// 共享深度测试;.mat 文件被编辑器改后,下一帧自动重刷参数。
+// 自定义着色器材质 forward 通道:渲染挂了 MaterialComponent(其 .mat 资产的
+// shader 非 builtin/pbr,且带 MeshComponent + TransformComponent)的对象。
+// 按 .mat 资产逐材质缓存 pipeline(自带着色器 + 参数 SSBO + 相机),逐对象以
+// 世界矩阵 push 绘制。共享深度测试;.mat 文件被编辑器改后,下一帧自动重刷参数。
 class CustomMaterialPass : public Subpass {
 public:
     CustomMaterialPass() : Subpass("custom_material_pass", false) {}

@@ -160,6 +160,8 @@ def extract_member_name(line):
         return None
     sanitized = strip_literals(line)
     sanitized = re.sub(r"\b\d+(?:\.\d+)?(?:[eE][+-]?\d+)?[fFlLuU]*\b", " ", sanitized)
+    # 剔除布尔/空指针字面量,避免 "bool flag = false;" 把 false 当成成员名。
+    sanitized = re.sub(r"\b(?:true|false|nullptr)\b", " ", sanitized)
     identifiers = re.findall(r"[A-Za-z_]\w*", sanitized)
     if not identifiers:
         return None

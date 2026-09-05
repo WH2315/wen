@@ -2,7 +2,6 @@
 
 #include "function/framework/component/transform/transform_component.hpp"
 #include "function/framework/component/material/material_component.hpp"
-#include "function/framework/component/custom_shader/custom_shader_component.hpp"
 #include "function/asset/mesh/mesh.hpp"
 #include "engine/global_context.hpp"
 
@@ -47,10 +46,12 @@ public:
             WEN_CORE_WARN("MeshComponent: no valid mesh (path: \"{}\"), instance not created.", mesh_path)
             return;
         }
-        // 挂有自定义着色器组件时,由 CustomMaterialPass 用 .mat 自带的着色器
-        // forward 绘制,不进默认 deferred 通道(避免双份绘制)。
-        // 注意:为使该逻辑生效,CustomShaderComponent 应比 MeshComponent 更早添加。
-        if (game_object_->queryComponent<CustomShaderComponent>() != nullptr) {
+        // 材质是自定义着色器材质(.mat 的 shader 非 builtin/pbr)时,由
+        // CustomMaterialPass 用 .mat 自带的着色器 forward 绘制,不进默认
+        // deferred 通道(避免双份绘制)。材质晚于网格添加/切换时由
+        // MaterialComponent::applyToMeshInstance 负责触发本组件重建。
+        if (auto* material = game_object_->queryComponent<MaterialComponent>();
+            material != nullptr && material->isCustomShaderMaterial()) {
             return;
         }
         auto mesh_instance_pool = global_context->render_system->getRenderData()->getMeshInstancePool();

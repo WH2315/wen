@@ -1,13 +1,20 @@
 #pragma once
 
 #include "function/framework/component.hpp"
+#include "function/asset/material_asset.hpp"
 #include "engine/global_context.hpp"
 #include <glm/glm.hpp>
 
 namespace wen {
 
-// 材质:基础色/金属度/粗糙度 + 纹理路径。onCreate 与成员变化时把数据
-// 写入兄弟 MeshComponent 的网格实例(基础色 + 纹理索引),供网格 pass 采样。
+// 统一材质组件(双轨合一的入口):
+//  - material_path 为空:直接使用下方内置 PBR 参数(旧行为,不入资产)。
+//  - material_path 非空:引用 .mat 资产(相对 <资源根>/materials)。
+//      * 资产 shader == builtin/pbr → 延迟通道(MeshPass);内置字段中
+//        override_* 为 true / 纹理路径非空 的项覆写资产值,其余用资产值。
+//      * 资产 shader 指向自定义 .frag → forward 通道(CustomMaterialPass),
+//        此时本组件的 PBR 字段不参与渲染。
+// 所有成员变化都会触发 applyToMeshInstance(编辑器/撤销自动同步)。
 class MaterialComponent : public Component {
     REFLECT_CLASS("MaterialComponent")
 
@@ -20,6 +27,11 @@ public:
         addMemberUpdateCallback([this](Component*) { applyToMeshInstance(); });
     }
 
+    // 材质资产路径(相对 <资源根>/materials 的 .mat);空 = 使用内置参数。
+    REFLECT_MEMBER()
+    std::string material_path;
+
+    // ---- 内置 PBR 参数(material_path 为空时生效;非空时作为覆写来源) ----
     REFLECT_MEMBER()
     glm::vec3 base_color;
 
@@ -64,27 +76,40 @@ public:
     REFLECT_MEMBER()
     float ao_intensity = 1.0f;
 
-    void onCreate() override {
-        applyToMeshInstance();
-    }
+    // ---- 覆写开关(material_path 非空时生效;纹理路径非空即视为覆写) ----
+    REFLECT_MEMBER()
+    bool override_base_color = false;
 
-    void onDestroy() override {
-        writeMeshInstance(glm::vec3(1.0f), 0.0f, 0.5f, 0, glm::vec3(0.0f), 0.0f, glm::vec2(1.0f), 0, 1.0f, 0, 0, 1.0f);
-    }
+    REFLECT_MEMBER()
+    bool override_metallic = false;
 
-    void applyToMeshInstance() {
-        if (game_object_ == nullptr) {
-            return;
-        }
-        uint32_t texture_index =
-            texture_path.empty() ? 0 : global_context->asset_system->loadTexture(texture_path);
-        uint32_t normal_index =
-            normal_map_path.empty() ? 0 : global_context->asset_system->loadNormalTexture(normal_map_path);
-        uint32_t mr_index = mr_map_path.empty() ? 0 : global_context->asset_system->loadMrTexture(mr_map_path);
-        uint32_t ao_index = ao_map_path.empty() ? 0 : global_context->asset_system->loadAoTexture(ao_map_path);
-        writeMeshInstance(base_color, metallic, roughness, texture_index, emissive_color, emissive_intensity,
-                          tiling, normal_index, normal_scale, mr_index, ao_index, ao_intensity);
-    }
+    REFLECT_MEMBER()
+    bool override_roughness = false;
+
+    REFLECT_MEMBER()
+    bool override_emissive_color = false;
+
+    REFLECT_MEMBER()
+    bool override_emissive_intensity = false;
+
+    REFLECT_MEMBER()
+    bool override_tiling = false;
+
+    REFLECT_MEMBER()
+    bool override_normal_scale = false;
+
+    REFLECT_MEMBER()
+    bool override_ao_intensity = false;
+
+    void onCreate() override;
+    void onDestroy() override;
+
+    // 是否自定义着色器材质(引用了 shader != builtin/pbr 的 .mat)。
+    bool isCustomShaderMaterial() const;
+
+    // 把最终材质参数写入渲染侧网格实例;自定义材质不写(由 CustomMaterialPass 绘制),
+    // 并在标准/自定义通道切换时让 MeshComponent 重建,避免双份绘制。
+    void applyToMeshInstance();
 
     // 编辑器设置纹理路径后立即重载(与撤销无关的即时应用)。
     void setTexturePath(const std::string& path) {
@@ -107,33 +132,16 @@ public:
         applyToMeshInstance();
     }
 
+    // .mat 资产的完整路径(material_path 为空时返回空串)。
+    std::string materialFullPath() const;
+
 private:
     void writeMeshInstance(const glm::vec3& color, float metal, float rough, uint32_t texture_index,
                            const glm::vec3& emissive_color, float emissive_intensity,
                            const glm::vec2& tiling, uint32_t normal_index, float normal_scale,
-                           uint32_t mr_index, uint32_t ao_index, float ao_intensity) {
-        if (game_object_ == nullptr) {
-            return;
-        }
-        auto* pool = global_context->render_system->getRenderData()->getMeshInstancePool();
-        if (pool->game_object_uuid_to_mesh_instance_index_map.find(game_object_->getUUID()) ==
-            pool->game_object_uuid_to_mesh_instance_index_map.end()) {
-            return;
-        }
-        auto* instance = pool->getMeshInstancePtr(game_object_->getUUID());
-        instance->base_color = color;
-        instance->metallic = metal;
-        instance->roughness = rough;
-        instance->texture_index = texture_index;
-        instance->emissive_color = emissive_color;
-        instance->emissive_intensity = emissive_intensity;
-        instance->tiling = tiling;
-        instance->normal_texture_index = normal_index;
-        instance->normal_scale = normal_scale;
-        instance->mr_texture_index = mr_index;
-        instance->ao_texture_index = ao_index;
-        instance->ao_intensity = ao_intensity;
-    }
+                           uint32_t mr_index, uint32_t ao_index, float ao_intensity);
+
+    bool applied_custom_ = false;  // 上次应用时的通道(运行时状态,不序列化)
 };
 
 }  // namespace wen
